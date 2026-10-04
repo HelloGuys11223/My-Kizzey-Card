@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nooble's Kizzey Presence</title>
 
-    <!-- Discord & Open Graph Rich Embed Tags -->
-    <meta property="og:title" content="Nooble's Kizzey Presence" />
-    <meta property="og:description" content="Live Discord Presence" />
+    <!-- Open Graph Live Image Embed via Lanyard SVG API -->
+    <meta property="og:title" content="Nooble's Discord Status" />
+    <meta property="og:description" content="Live Discord & Spotify Presence" />
     <meta property="og:url" content="https://helloguys11223.github.io" />
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://lanyard.cnrad.dev/api/1167583899409465377?theme=dark&bg=16161e&hideDiscrim=true" />
     <meta name="theme-color" content="#23A55A" />
 </head>
 <body>
@@ -63,7 +64,7 @@
 
   <div class="kzc-363923-body" data-kz="body">
     <div class="kzc-363923-label" id="kz-label" data-kz="label">Listening to</div>
-    <div class="kzc-363923-name" id="kz-name" data-kz="name">SpotiDuck</div>
+    <div class="kzc-363923-name" id="kz-name" data-kz="name">Loading...</div>
     <div class="kzc-363923-details" id="kz-details" data-kz="details">Loading details...</div>
     <div class="kzc-363923-state" id="kz-state" data-kz="state">Loading state...</div>
     <div class="kzc-363923-time" id="kzc-363923-time" data-kz="time">--:-- elapsed</div>
@@ -90,7 +91,7 @@
     }
   }, 1000);
 
-  // Fetch live activity from Lanyard
+  // Fetch live general presence from Lanyard
   async function updatePresence() {
     try {
       const res = await fetch(`https://api.lanyard.rest/v1/users/${DISCORD_ID}`);
@@ -100,7 +101,7 @@
 
       const data = body.data;
 
-      // 1. Check native Spotify listening state first
+      // 1. Spotify Priority
       if (data.listening_to_spotify) {
         document.getElementById("kz-label").textContent = "Listening to";
         document.getElementById("kz-name").textContent = "Spotify";
@@ -110,8 +111,8 @@
         return;
       }
 
-      // 2. Check general Discord Rich Presence activities (SpotiDuck, Games, Apps, Custom RPCs)
-      const activeApp = data.activities.find(act => act.type !== 4); // exclude custom text status
+      // 2. Games / Rich Presence Apps
+      const activeApp = data.activities.find(act => act.type !== 4);
 
       if (activeApp) {
         const labels = { 0: "Playing", 1: "Streaming", 2: "Listening to", 3: "Watching", 5: "Competing in" };
@@ -128,7 +129,7 @@
         return;
       }
 
-      // 3. Fallback when offline or no active presence
+      // 3. Status Fallback
       document.getElementById("kz-label").textContent = "Status";
       document.getElementById("kz-name").textContent = (data.discord_status || "OFFLINE").toUpperCase();
       document.getElementById("kz-details").textContent = "No active activity";
@@ -141,7 +142,6 @@
     }
   }
 
-  // Poll Lanyard every 5 seconds
   updatePresence();
   setInterval(updatePresence, 5000);
 </script>
