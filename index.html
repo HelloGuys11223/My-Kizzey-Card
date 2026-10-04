@@ -1,150 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nooble's Kizzey Presence</title>
-
-    <!-- Open Graph Live Image Embed via Lanyard SVG API -->
-    <meta property="og:title" content="Nooble's Discord Status" />
-    <meta property="og:description" content="Live Discord & Spotify Presence" />
-    <meta property="og:url" content="https://helloguys11223.github.io" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lanyard.cnrad.dev/api/1167583899409465377?theme=dark&bg=16161e&hideDiscrim=true" />
-    <meta name="theme-color" content="#23A55A" />
-</head>
-<body>
-
-<div class="kzc-363923 kzc-363923--horizontal kzc-363923--glass" data-kz="card">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nooble's Kizzey Presence</title>
   <style>
     body {
+      background-color: #0e0e10;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
       margin: 0;
-      background-color: #0f0f13;
     }
-    .kzc-363923 {
-      --kz-bg: rgba(22,22,30,0.42);
-      --kz-bg-image: none;
-      --kz-panel: rgba(255,255,255,0.10);
-      --kz-border: rgba(255,255,255,0.22);
-      --kz-border-width: 1px;
-      --kz-text: #FFFFFF;
-      --kz-muted: rgba(255,255,255,0.76);
-      --kz-accent: #23A55A;
-      --kz-accent-soft: rgba(35, 165, 90, 0.18);
-      --kz-on-accent: #111214;
-      --kz-button-bg: var(--kz-accent);
-      --kz-button-text: var(--kz-on-accent);
-      --kz-button-border: var(--kz-accent);
-      --kz-backdrop: blur(18px) saturate(160%);
-      --kz-shadow: 0 18px 52px rgba(0,0,0,0.45);
-      --kz-radius: 16px;
-      --kz-art-radius: calc(var(--kz-radius) * 0.6);
-      --kz-font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      --kz-size: 13px;
-      --kz-art: 56px;
-      --kz-pad: 12px;
-      --kz-gap: 12px;
-      --kz-width: 380px;
+
+    .kizzey-card {
+      background-color: #111214;
+      border: 1px solid #232428;
+      border-radius: 16px;
+      padding: 20px;
+      width: 360px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
-    .kzc-363923 { box-sizing: border-box; display: flex; align-items: center; gap: var(--kz-gap); width: 100%; max-width: var(--kz-width); padding: var(--kz-pad); border-radius: var(--kz-radius); background-color: var(--kz-bg); background-image: var(--kz-bg-image); border: var(--kz-border-width) solid var(--kz-border); box-shadow: var(--kz-shadow); color: var(--kz-text); font-family: var(--kz-font); font-size: var(--kz-size); line-height: 1.35; text-align: start; overflow: hidden; -webkit-backdrop-filter: var(--kz-backdrop); backdrop-filter: var(--kz-backdrop); }
-    .kzc-363923 * { box-sizing: border-box; }
-    .kzc-363923-body { display: flex; flex-direction: column; gap: 0.15em; min-width: 0; flex: 1 1 auto; }
-    .kzc-363923-label { font-size: 0.72em; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--kz-muted); }
-    .kzc-363923-name { font-size: 1.08em; font-weight: 700; color: var(--kz-text); }
-    .kzc-363923-details, .kzc-363923-state { color: var(--kz-muted); }
-    .kzc-363923-name, .kzc-363923-details, .kzc-363923-state { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .kzc-363923-time { color: var(--kz-accent); font-size: 0.86em; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .kzc-363923-credit { align-self: flex-start; margin-top: 0.45em; font-size: 0.7em; color: var(--kz-muted); text-decoration: none; opacity: 0.85; }
-    .kzc-363923-credit:hover { opacity: 1; text-decoration: underline; }
+
+    .card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 240px;
+    }
+
+    .status-type {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #949ba4;
+      text-transform: uppercase;
+    }
+
+    .title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f2f3f5;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .details, .state {
+      font-size: 0.85rem;
+      color: #b5bac1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .state-active {
+      color: #23a55a;
+      font-weight: 600;
+    }
+
+    .footer {
+      margin-top: 6px;
+      font-size: 0.7rem;
+      color: #80848e;
+    }
+
+    .card-icon {
+      width: 70px;
+      height: 70px;
+      border-radius: 12px;
+      object-fit: cover;
+      margin-left: 12px;
+      display: none;
+    }
   </style>
+</head>
+<body>
 
-  <div class="kzc-363923-body" data-kz="body">
-    <div class="kzc-363923-label" id="kz-label" data-kz="label">Listening to</div>
-    <div class="kzc-363923-name" id="kz-name" data-kz="name">Loading...</div>
-    <div class="kzc-363923-details" id="kz-details" data-kz="details">Loading details...</div>
-    <div class="kzc-363923-state" id="kz-state" data-kz="state">Loading state...</div>
-    <div class="kzc-363923-time" id="kzc-363923-time" data-kz="time">--:-- elapsed</div>
-    <a class="kzc-363923-credit" data-kz="credit" href="https://kizzeyrpc.xyz" target="_blank" rel="noopener noreferrer">Made with Kizzey</a>
+  <div class="kizzey-card">
+    <div class="card-info">
+      <div class="status-type" id="status-type">STATUS</div>
+      <div class="title" id="status-title">Loading...</div>
+      <div class="details" id="status-details">Fetching live data</div>
+      <div class="state state-active" id="status-state">Active</div>
+      <div class="footer">Made with Kizzey</div>
+    </div>
+    <img id="card-image" class="card-icon" src="" alt="App Icon" />
   </div>
-</div>
 
-<script>
-  const DISCORD_ID = "1167583899409465377";
-  let activityStart = null;
+  <script>
+    const USER_ID = "1167583899409465377";
 
-  function two(n) { return n < 10 ? "0" + n : String(n); }
-  function formatTime(ms) {
-    const s = Math.max(0, Math.floor(ms / 1000));
-    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
-    return h > 0 ? `${h}:${two(m)}:${two(x)}` : `${m}:${two(x)}`;
-  }
-
-  // Live timer tick
-  setInterval(() => {
-    const timeEl = document.getElementById("kzc-363923-time");
-    if (activityStart && timeEl) {
-      timeEl.textContent = `${formatTime(Date.now() - activityStart)} elapsed`;
-    }
-  }, 1000);
-
-  // Fetch live general presence from Lanyard
-  async function updatePresence() {
-    try {
-      const res = await fetch(`https://api.lanyard.rest/v1/users/${DISCORD_ID}`);
-      const body = await res.json();
-      
-      if (!body.success) return;
-
-      const data = body.data;
-
-      // 1. Spotify Priority
-      if (data.listening_to_spotify) {
-        document.getElementById("kz-label").textContent = "Listening to";
-        document.getElementById("kz-name").textContent = "Spotify";
-        document.getElementById("kz-details").textContent = data.spotify.song;
-        document.getElementById("kz-state").textContent = data.spotify.artist;
-        activityStart = data.spotify.timestamps.start;
-        return;
+    function getImageUrl(data) {
+      if (data.listening_to_spotify && data.spotify?.album_art_url) {
+        return data.spotify.album_art_url;
       }
-
-      // 2. Games / Rich Presence Apps
-      const activeApp = data.activities.find(act => act.type !== 4);
-
-      if (activeApp) {
-        const labels = { 0: "Playing", 1: "Streaming", 2: "Listening to", 3: "Watching", 5: "Competing in" };
-        
-        document.getElementById("kz-label").textContent = labels[activeApp.type] || "Active";
-        document.getElementById("kz-name").textContent = activeApp.name || "App";
-        document.getElementById("kz-details").textContent = activeApp.details || activeApp.state || "Active";
-        document.getElementById("kz-state").textContent = activeApp.details ? (activeApp.state || "") : "";
-        
-        activityStart = (activeApp.timestamps && activeApp.timestamps.start) ? activeApp.timestamps.start : null;
-        if (!activityStart) {
-          document.getElementById("kzc-363923-time").textContent = "Active";
+      if (data.activities && data.activities.length > 0) {
+        const act = data.activities.find(a => a.type !== 4 && a.assets?.large_image);
+        if (act && act.assets.large_image) {
+          const asset = act.assets.large_image;
+          if (asset.startsWith("mp:external/")) {
+            return `https://media.discordapp.net/${asset.replace("mp:", "")}`;
+          }
+          if (asset.startsWith("spotify:")) {
+            return `https://i.scdn.co/image/${asset.replace("spotify:", "")}`;
+          }
+          return `https://cdn.discordapp.com/app-assets/${act.application_id}/${asset}.png`;
         }
-        return;
       }
-
-      // 3. Status Fallback
-      document.getElementById("kz-label").textContent = "Status";
-      document.getElementById("kz-name").textContent = (data.discord_status || "OFFLINE").toUpperCase();
-      document.getElementById("kz-details").textContent = "No active activity";
-      document.getElementById("kz-state").textContent = "";
-      document.getElementById("kzc-363923-time").textContent = "--:--";
-      activityStart = null;
-
-    } catch (err) {
-      console.error("Error fetching presence:", err);
+      return null;
     }
-  }
 
-  updatePresence();
-  setInterval(updatePresence, 5000);
-</script>
+    async function fetchPresence() {
+      try {
+        const res = await fetch(`https://api.lanyard.rest/v1/users/${USER_ID}`);
+        const json = await res.json();
+        if (!json.success) return;
 
+        const data = json.data;
+        const typeEl = document.getElementById("status-type");
+        const titleEl = document.getElementById("status-title");
+        const detailsEl = document.getElementById("status-details");
+        const stateEl = document.getElementById("status-state");
+        const imgEl = document.getElementById("card-image");
+
+        if (data.listening_to_spotify) {
+          typeEl.innerText = "LISTENING TO SPOTIFY";
+          titleEl.innerText = data.spotify.song;
+          detailsEl.innerText = `by ${data.spotify.artist}`;
+          stateEl.innerText = data.spotify.album;
+        } else if (data.activities && data.activities.length > 0) {
+          const act = data.activities.find(a => a.type !== 4) || data.activities[0];
+          typeEl.innerText = act.type === 0 ? "PLAYING" : "ACTIVITY";
+          titleEl.innerText = act.name;
+          detailsEl.innerText = act.details || "";
+          stateEl.innerText = act.state || "Active";
+        } else {
+          typeEl.innerText = "DISCORD STATUS";
+          titleEl.innerText = "No Active Activity";
+          detailsEl.innerText = "Online";
+          stateEl.innerText = data.discord_status.toUpperCase();
+        }
+
+        const imgUrl = getImageUrl(data);
+        if (imgUrl) {
+          imgEl.src = imgUrl;
+          imgEl.style.display = "block";
+        } else {
+          imgEl.style.display = "none";
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    fetchPresence();
+    setInterval(fetchPresence, 5000);
+  </script>
 </body>
 </html>
