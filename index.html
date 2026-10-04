@@ -1,0 +1,91 @@
+<!--
+  Kizzey card, made with the Kizzey app. Paste it anywhere in your page.
+  Every colour and size is a CSS variable on .kzc-694c6d. Change them in the Custom CSS box in the
+  app, or from your own stylesheet with a rule that wins over this one, for example:
+    body .kzc-694c6d { --kz-accent: #EB459E; --kz-radius: 20px; }
+  Variables:
+    --kz-bg, --kz-bg-image, --kz-panel, --kz-border, --kz-border-width, --kz-text, --kz-muted,
+    --kz-accent, --kz-accent-soft, --kz-on-accent, --kz-button-bg, --kz-button-text,
+    --kz-button-border, --kz-backdrop, --kz-shadow, --kz-radius, --kz-art-radius, --kz-font,
+    --kz-size, --kz-art, --kz-pad, --kz-gap, --kz-width
+  Every part has a class and a data-kz attribute to target, like [data-kz="name"]:
+    card, art, large, small, body, label, name, details, state, time, buttons, button, credit
+-->
+<div class="kzc-694c6d kzc-694c6d--horizontal kzc-694c6d--glass" data-kz="card">
+  <style>
+    .kzc-694c6d {
+      --kz-bg: rgba(22,22,30,0.42);
+      --kz-bg-image: none;
+      --kz-panel: rgba(255,255,255,0.10);
+      --kz-border: rgba(255,255,255,0.22);
+      --kz-border-width: 1px;
+      --kz-text: #FFFFFF;
+      --kz-muted: rgba(255,255,255,0.76);
+      --kz-accent: #23A55A;
+      --kz-accent-soft: rgba(35, 165, 90, 0.18);
+      --kz-on-accent: #111214;
+      --kz-button-bg: var(--kz-accent);
+      --kz-button-text: var(--kz-on-accent);
+      --kz-button-border: var(--kz-accent);
+      --kz-backdrop: blur(18px) saturate(160%);
+      --kz-shadow: 0 18px 52px rgba(0,0,0,0.45);
+      --kz-radius: 16px;
+      --kz-art-radius: calc(var(--kz-radius) * 0.6);
+      --kz-font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --kz-size: 13px;
+      --kz-art: 56px;
+      --kz-pad: 12px;
+      --kz-gap: 12px;
+      --kz-width: 380px;
+    }
+    .kzc-694c6d { box-sizing: border-box; display: flex; align-items: center; gap: var(--kz-gap); width: 100%; max-width: var(--kz-width); padding: var(--kz-pad); border-radius: var(--kz-radius); background-color: var(--kz-bg); background-image: var(--kz-bg-image); border: var(--kz-border-width) solid var(--kz-border); box-shadow: var(--kz-shadow); color: var(--kz-text); font-family: var(--kz-font); font-size: var(--kz-size); line-height: 1.35; text-align: start; overflow: hidden; -webkit-backdrop-filter: var(--kz-backdrop); backdrop-filter: var(--kz-backdrop); }
+    .kzc-694c6d * { box-sizing: border-box; }
+    .kzc-694c6d--vertical { flex-direction: column; text-align: center; }
+    .kzc-694c6d-art { position: relative; flex: none; width: var(--kz-art); height: var(--kz-art); }
+    .kzc-694c6d--vertical .kzc-694c6d-art { width: calc(var(--kz-art) * 1.4); height: calc(var(--kz-art) * 1.4); }
+    .kzc-694c6d-large { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: var(--kz-art-radius); background: var(--kz-panel); }
+    .kzc-694c6d-small { position: absolute; right: -6%; bottom: -6%; width: 38%; height: 38%; object-fit: cover; border-radius: 50%; border: 3px solid var(--kz-bg); background: var(--kz-bg); }
+    .kzc-694c6d-body { display: flex; flex-direction: column; gap: 0.15em; min-width: 0; flex: 1 1 auto; }
+    .kzc-694c6d--vertical .kzc-694c6d-body { align-items: center; width: 100%; }
+    .kzc-694c6d--center .kzc-694c6d-body { align-items: center; text-align: center; }
+    .kzc-694c6d-label { font-size: 0.72em; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--kz-muted); }
+    .kzc-694c6d-name { font-size: 1.08em; font-weight: 700; color: var(--kz-text); }
+    .kzc-694c6d-details, .kzc-694c6d-state { color: var(--kz-muted); }
+    .kzc-694c6d-name, .kzc-694c6d-details, .kzc-694c6d-state { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .kzc-694c6d-time { color: var(--kz-accent); font-size: 0.86em; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .kzc-694c6d-buttons { display: flex; flex-wrap: wrap; gap: 0.5em; margin-top: 0.6em; }
+    .kzc-694c6d--vertical .kzc-694c6d-buttons { width: 100%; flex-direction: column; }
+    .kzc-694c6d--center .kzc-694c6d-buttons { justify-content: center; }
+    .kzc-694c6d-button { flex: 1 1 auto; display: block; padding: 0.6em 1em; border: 1px solid var(--kz-button-border); border-radius: calc(var(--kz-radius) * 0.55); background: var(--kz-button-bg); color: var(--kz-button-text); font-weight: 600; font-size: 0.86em; text-align: center; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: filter 0.15s ease; }
+    .kzc-694c6d-button:hover { filter: brightness(1.08); }
+    .kzc-694c6d-button:focus-visible, .kzc-694c6d-credit:focus-visible { outline: 2px solid var(--kz-text); outline-offset: 2px; }
+    .kzc-694c6d-credit { align-self: flex-start; margin-top: 0.45em; font-size: 0.7em; color: var(--kz-muted); text-decoration: none; opacity: 0.85; }
+    .kzc-694c6d--vertical .kzc-694c6d-credit, .kzc-694c6d--center .kzc-694c6d-credit { align-self: center; }
+    .kzc-694c6d-credit:hover { opacity: 1; text-decoration: underline; }
+  </style>
+  <div class="kzc-694c6d-body" data-kz="body">
+    <div class="kzc-694c6d-label" data-kz="label">Listening to</div>
+    <div class="kzc-694c6d-name" data-kz="name">Spotify</div>
+    <div class="kzc-694c6d-details" data-kz="details">Summer Connection</div>
+    <div class="kzc-694c6d-state" data-kz="state">Taeko Onuki</div>
+    <div class="kzc-694c6d-time" data-kz="time" id="kzc-694c6d-time" data-kz-start="1791128775941" data-kz-template="{time} elapsed">1:33 elapsed</div>
+    <a class="kzc-694c6d-credit" data-kz="credit" href="https://kizzeyrpc.xyz" target="_blank" rel="noopener noreferrer">Made with Kizzey</a>
+  </div>
+  <script>
+    (function () {
+      var el = document.getElementById("kzc-694c6d-time");
+      if (!el) return;
+      var start = Number(el.getAttribute("data-kz-start"));
+      var template = el.getAttribute("data-kz-template") || "{time}";
+      function two(n) { return n < 10 ? "0" + n : String(n); }
+      function format(ms) {
+        var s = Math.max(0, Math.floor(ms / 1000));
+        var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+        return h > 0 ? h + ":" + two(m) + ":" + two(x) : m + ":" + two(x);
+      }
+      function tick() { el.textContent = template.replace("{time}", format(Date.now() - start)); }
+      tick();
+      setInterval(tick, 1000);
+    })();
+  </script>
+</div>
