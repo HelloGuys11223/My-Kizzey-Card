@@ -102,6 +102,7 @@
       1: "STREAMING",
       2: "LISTENING TO",
       3: "WATCHING",
+      4: "CUSTOM STATUS",
       5: "COMPETING IN"
     };
 
@@ -138,30 +139,30 @@
         const stateEl = document.getElementById("status-state");
         const imgEl = document.getElementById("card-image");
 
-        // Separate real games/apps (type != 4) from custom status (type == 4)
-        const richActivity = data.activities ? data.activities.find(a => a.type !== 4) : null;
-        const customStatus = data.activities ? data.activities.find(a => a.type === 4) : null;
-
         if (data.listening_to_spotify) {
           typeEl.innerText = "LISTENING TO SPOTIFY";
           titleEl.innerText = data.spotify.song;
           detailsEl.innerText = `by ${data.spotify.artist}`;
           stateEl.innerText = data.spotify.album;
-        } else if (richActivity) {
-          typeEl.innerText = activityTypes[richActivity.type] || "ACTIVITY";
-          titleEl.innerText = richActivity.name;
-          detailsEl.innerText = richActivity.details || "";
-          stateEl.innerText = richActivity.state || "Active";
-        } else if (customStatus && customStatus.state) {
-          typeEl.innerText = "CUSTOM STATUS";
-          titleEl.innerText = customStatus.state;
-          detailsEl.innerText = customStatus.emoji ? customStatus.emoji.name : "";
-          stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
+        } else if (data.activities && data.activities.length > 0) {
+          const act = data.activities.find(a => a.type !== 4) || data.activities[0];
+          
+          typeEl.innerText = activityTypes[act.type] || "ACTIVITY";
+          
+          if (act.type === 4) {
+            titleEl.innerText = act.state || act.name;
+            detailsEl.innerText = act.emoji ? act.emoji.name : "";
+            stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
+          } else {
+            titleEl.innerText = act.name;
+            detailsEl.innerText = act.details || "";
+            stateEl.innerText = act.state || "Active";
+          }
         } else {
           typeEl.innerText = "DISCORD STATUS";
           titleEl.innerText = "No Active Activity";
           detailsEl.innerText = "Online";
-          stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
+          stateEl.innerText = data.discord_status.toUpperCase();
         }
 
         const imgUrl = getImageUrl(data);
