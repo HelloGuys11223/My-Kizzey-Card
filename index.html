@@ -65,6 +65,14 @@
       font-weight: 600;
     }
 
+    .timer {
+      font-size: 0.75rem;
+      color: #1db954;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px;
+    }
+
     .footer {
       margin-top: 6px;
       font-size: 0.7rem;
@@ -89,9 +97,10 @@
       <div class="title" id="status-title">Loading...</div>
       <div class="details" id="status-details">Fetching live data</div>
       <div class="state state-active" id="status-state">Active</div>
+      <div class="timer" id="status-timer"></div>
       <div class="footer">Made with Kizzey</div>
     </div>
-    <img id="card-image" class="card-icon" src="" alt="App Icon" />
+    <img id="card-image" class="card-icon" src="" alt="" onerror="this.style.display='none'" />
   </div>
 
   <script>
@@ -106,23 +115,59 @@
       5: "COMPETING IN"
     };
 
-    function getImageUrl(data) {
+    let activeTimestamps = null;
+
+    function formatMs(ms) {
+      if (isNaN(ms) || ms < 0) return "0:00";
+      const totalSec = Math.floor(ms / 1000);
+      const min = Math.floor(totalSec / 60);
+      const sec = Math.floor(totalSec % 60);
+      return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    }
+
+    function updateTimer() {
+      const timerEl = document.getElementById("status-timer");
+      if (!activeTimestamps || !activeTimestamps.start) {
+        timerEl.innerText = "";
+        return;
+      }
+
+      const now = Date.now();
+      const elapsedMs = Math.max(0, now - activeTimestamps.start);
+
+      if (activeTimestamps.end) {
+        const totalMs = activeTimestamps.end - activeTimestamps.start;
+        timerEl.innerText = `${formatMs(elapsedMs)} / ${formatMs(totalMs)}`;
+      } else {
+        timerEl.innerText = `${formatMs(elapsedMs)} elapsed`;
+      }
+    }
+
+    function getImageUrl(data, act) {
       if (data.listening_to_spotify && data.spotify?.album_art_url) {
         return data.spotify.album_art_url;
       }
-      if (data.activities && data.activities.length > 0) {
-        const act = data.activities.find(a => a.type !== 4 && a.assets?.large_image);
-        if (act && act.assets.large_image) {
-          const asset = act.assets.large_image;
-          if (asset.startsWith("mp:external/")) {
-            return `https://media.discordapp.net/${asset.replace("mp:", "")}`;
-          }
-          if (asset.startsWith("spotify:")) {
-            return `https://i.scdn.co/image/${asset.replace("spotify:", "")}`;
-          }
-          return `https://cdn.discordapp.com/app-assets/${act.application_id}/${asset}.png`;
-        }
+      
+      const asset = act?.assets?.large_image;
+      if (!asset) return null;
+
+      if (asset.startsWith("spotify:")) {
+        return `https://i.scdn.co/image/${asset.replace("spotify:", "")}`;
       }
+
+      if (asset.startsWith("mp:external/")) {
+        // Extract original URL embedded in mp:external/hash/https/domain.com/...
+        const parts = asset.split("/http");
+        if (parts.length > 1) {
+          return "http" + parts[1];
+        }
+        return `https://media.discordapp.net/external/${asset.replace("mp:external/", "")}`;
+      }
+
+      if (act.application_id) {
+        return `https://cdn.discordapp.com/app-assets/${act.application_id}/${asset}.png`;
+      }
+
       return null;
     }
 
@@ -144,34 +189,48 @@
           titleEl.innerText = data.spotify.song;
           detailsEl.innerText = `by ${data.spotify.artist}`;
           stateEl.innerText = data.spotify.album;
+          activeTimestamps = {
+            start: data.spotify.timestamps?.start,
+            end: data.spotify.timestamps?.end
+          };
         } else if (data.activities && data.activities.length > 0) {
           const act = data.activities.find(a => a.type !== 4) || data.activities[0];
           
           typeEl.innerText = activityTypes[act.type] || "ACTIVITY";
-          
+          activeTimestamps = act.timestamps || null;
+
           if (act.type === 4) {
             titleEl.innerText = act.state || act.name;
             detailsEl.innerText = act.emoji ? act.emoji.name : "";
             stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
+          } else if (act.details) {
+            // Priority formatting for SpotiDuck and Rich Presence apps
+            titleEl.innerText = act.details;
+            detailsEl.innerText = act.state || act.name;
+            stateEl.innerText = act.assets?.large_text || act.name;
           } else {
             titleEl.innerText = act.name;
             detailsEl.innerText = act.details || "";
             stateEl.innerText = act.state || "Active";
+          }
+
+          const imgUrl = getImageUrl(data, act);
+          if (imgUrl) {
+            imgEl.src = imgUrl;
+            imgEl.style.display = "block";
+          } else {
+            imgEl.style.display = "none";
           }
         } else {
           typeEl.innerText = "DISCORD STATUS";
           titleEl.innerText = "No Active Activity";
           detailsEl.innerText = "Online";
           stateEl.innerText = data.discord_status.toUpperCase();
-        }
-
-        const imgUrl = getImageUrl(data);
-        if (imgUrl) {
-          imgEl.src = imgUrl;
-          imgEl.style.display = "block";
-        } else {
+          activeTimestamps = null;
           imgEl.style.display = "none";
         }
+
+        updateTimer();
       } catch (e) {
         console.error(e);
       }
@@ -179,6 +238,7 @@
 
     fetchPresence();
     setInterval(fetchPresence, 5000);
+    setInterval(updateTimer, 1000);
   </script>
 </body>
 </html>
