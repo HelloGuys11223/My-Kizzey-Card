@@ -60,11 +60,6 @@
       text-overflow: ellipsis;
     }
 
-    .state-active {
-      color: #23a55a;
-      font-weight: 600;
-    }
-
     .timer {
       font-size: 0.75rem;
       color: #1db954;
@@ -96,7 +91,7 @@
       <div class="status-type" id="status-type">STATUS</div>
       <div class="title" id="status-title">Loading...</div>
       <div class="details" id="status-details">Fetching live data</div>
-      <div class="state state-active" id="status-state">Active</div>
+      <div class="state" id="status-state"></div>
       <div class="timer" id="status-timer"></div>
       <div class="footer">Made with Kizzey</div>
     </div>
@@ -148,19 +143,22 @@
         return data.spotify.album_art_url;
       }
       
-      const asset = act?.assets?.large_image;
-      if (!asset) return null;
+      if (!act || !act.assets || !act.assets.large_image) return null;
+      const asset = act.assets.large_image;
 
       if (asset.startsWith("spotify:")) {
         return `https://i.scdn.co/image/${asset.replace("spotify:", "")}`;
       }
 
-      if (asset.startsWith("mp:external/")) {
-        // Extract original URL embedded in mp:external/hash/https/domain.com/...
-        const parts = asset.split("/http");
-        if (parts.length > 1) {
-          return "http" + parts[1];
+      // Extract direct URL from Discord's external proxy string (SpotiDuck / Rich Presence)
+      if (asset.includes("http/") || asset.includes("https/")) {
+        const match = asset.match(/https?\/.*/);
+        if (match) {
+          return match[0].replace("https/", "https://").replace("http/", "http://");
         }
+      }
+
+      if (asset.startsWith("mp:external/")) {
         return `https://media.discordapp.net/external/${asset.replace("mp:external/", "")}`;
       }
 
@@ -189,43 +187,67 @@
           titleEl.innerText = data.spotify.song;
           detailsEl.innerText = `by ${data.spotify.artist}`;
           stateEl.innerText = data.spotify.album;
+          stateEl.style.display = "block";
           activeTimestamps = {
             start: data.spotify.timestamps?.start,
             end: data.spotify.timestamps?.end
           };
-        } else if (data.activities && data.activities.length > 0) {
-          const act = data.activities.find(a => a.type !== 4) || data.activities[0];
-          
-          typeEl.innerText = activityTypes[act.type] || "ACTIVITY";
-          activeTimestamps = act.timestamps || null;
 
-          if (act.type === 4) {
-            titleEl.innerText = act.state || act.name;
-            detailsEl.innerText = act.emoji ? act.emoji.name : "";
-            stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
-          } else if (act.details) {
-            // Priority formatting for SpotiDuck and Rich Presence apps
-            titleEl.innerText = act.details;
-            detailsEl.innerText = act.state || act.name;
-            stateEl.innerText = act.assets?.large_text || act.name;
-          } else {
-            titleEl.innerText = act.name;
-            detailsEl.innerText = act.details || "";
-            stateEl.innerText = act.state || "Active";
-          }
-
-          const imgUrl = getImageUrl(data, act);
+          const imgUrl = getImageUrl(data, null);
           if (imgUrl) {
             imgEl.src = imgUrl;
             imgEl.style.display = "block";
           } else {
             imgEl.style.display = "none";
           }
+        } else if (data.activities && data.activities.length > 0) {
+          const act = data.activities.find(a => a.type !== 4) || data.activities[0];
+          activeTimestamps = act.timestamps || null;
+
+          if (act.type === 4) {
+            typeEl.innerText = "CUSTOM STATUS";
+            titleEl.innerText = act.state || act.name;
+            detailsEl.innerText = act.emoji ? act.emoji.name : "";
+            stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
+            stateEl.style.display = "block";
+            imgEl.style.display = "none";
+          } else {
+            // App name next to status (e.g. LISTENING TO SPOTIDUCK)
+            const typePrefix = activityTypes[act.type] || "ACTIVITY";
+            typeEl.innerText = `${typePrefix} ${act.name.toUpperCase()}`;
+
+            if (act.details) {
+              titleEl.innerText = act.details;
+              detailsEl.innerText = act.state || "";
+              
+              const albumOrText = act.assets?.large_text;
+              if (albumOrText && albumOrText !== act.details && albumOrText !== act.state) {
+                stateEl.innerText = albumOrText;
+                stateEl.style.display = "block";
+              } else {
+                stateEl.style.display = "none";
+              }
+            } else {
+              titleEl.innerText = act.name;
+              detailsEl.innerText = act.details || "";
+              stateEl.innerText = act.state || "Active";
+              stateEl.style.display = "block";
+            }
+
+            const imgUrl = getImageUrl(data, act);
+            if (imgUrl) {
+              imgEl.src = imgUrl;
+              imgEl.style.display = "block";
+            } else {
+              imgEl.style.display = "none";
+            }
+          }
         } else {
           typeEl.innerText = "DISCORD STATUS";
           titleEl.innerText = "No Active Activity";
           detailsEl.innerText = "Online";
-          stateEl.innerText = data.discord_status.toUpperCase();
+          stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
+          stateEl.style.display = "block";
           activeTimestamps = null;
           imgEl.style.display = "none";
         }
