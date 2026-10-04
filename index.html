@@ -60,6 +60,11 @@
       text-overflow: ellipsis;
     }
 
+    .state-highlight {
+      color: #23a55a;
+      font-weight: 600;
+    }
+
     .timer {
       font-size: 0.75rem;
       color: #1db954;
@@ -75,8 +80,8 @@
     }
 
     .card-icon {
-      width: 70px;
-      height: 70px;
+      width: 76px;
+      height: 76px;
       border-radius: 12px;
       object-fit: cover;
       margin-left: 12px;
@@ -91,7 +96,7 @@
       <div class="status-type" id="status-type">STATUS</div>
       <div class="title" id="status-title">Loading...</div>
       <div class="details" id="status-details">Fetching live data</div>
-      <div class="state" id="status-state"></div>
+      <div class="state state-highlight" id="status-state"></div>
       <div class="timer" id="status-timer"></div>
       <div class="footer">Made with Kizzey</div>
     </div>
@@ -143,25 +148,29 @@
         return data.spotify.album_art_url;
       }
       
-      if (!act || !act.assets || !act.assets.large_image) return null;
-      const asset = act.assets.large_image;
+      if (!act || !act.assets) return null;
+      const asset = act.assets.large_image || act.assets.small_image;
+      if (!asset) return null;
 
+      // Direct Spotify Key
       if (asset.startsWith("spotify:")) {
         return `https://i.scdn.co/image/${asset.replace("spotify:", "")}`;
       }
 
-      // Extract direct URL from Discord's external proxy string (SpotiDuck / Rich Presence)
-      if (asset.includes("http/") || asset.includes("https/")) {
-        const match = asset.match(/https?\/.*/);
-        if (match) {
-          return match[0].replace("https/", "https://").replace("http/", "http://");
-        }
-      }
-
+      // Parse Discord External Proxy (SpotiDuck / Rich Presence)
       if (asset.startsWith("mp:external/")) {
+        const httpsIdx = asset.indexOf("/https/");
+        if (httpsIdx !== -1) {
+          return "https://" + asset.substring(httpsIdx + 7);
+        }
+        const httpIdx = asset.indexOf("/http/");
+        if (httpIdx !== -1) {
+          return "http://" + asset.substring(httpIdx + 6);
+        }
         return `https://media.discordapp.net/external/${asset.replace("mp:external/", "")}`;
       }
 
+      // Standard Discord Application Assets
       if (act.application_id) {
         return `https://cdn.discordapp.com/app-assets/${act.application_id}/${asset}.png`;
       }
@@ -212,7 +221,6 @@
             stateEl.style.display = "block";
             imgEl.style.display = "none";
           } else {
-            // App name next to status (e.g. LISTENING TO SPOTIDUCK)
             const typePrefix = activityTypes[act.type] || "ACTIVITY";
             typeEl.innerText = `${typePrefix} ${act.name.toUpperCase()}`;
 
@@ -220,9 +228,9 @@
               titleEl.innerText = act.details;
               detailsEl.innerText = act.state || "";
               
-              const albumOrText = act.assets?.large_text;
-              if (albumOrText && albumOrText !== act.details && albumOrText !== act.state) {
-                stateEl.innerText = albumOrText;
+              const extraText = act.assets?.large_text;
+              if (extraText && extraText !== act.details && extraText !== act.state) {
+                stateEl.innerText = extraText;
                 stateEl.style.display = "block";
               } else {
                 stateEl.style.display = "none";
