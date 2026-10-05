@@ -77,6 +77,17 @@
       margin-top: 6px;
       font-size: 0.7rem;
       color: #80848e;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .gemini-logo {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+      opacity: 0.5;
+      flex-shrink: 0;
     }
 
     .card-icon {
@@ -98,7 +109,12 @@
       <div class="details" id="status-details">Establishing real-time link</div>
       <div class="state state-highlight" id="status-state"></div>
       <div class="timer" id="status-timer"></div>
-      <div class="footer">Made with Kizzey</div>
+      <div class="footer">
+        <span>Template from Kizzey, Assisted by Gemini</span>
+        <svg class="gemini-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 0C12 6.627 17.373 12 24 12C17.373 12 12 17.373 12 24C12 17.373 6.627 12 0 12C6.627 12 12 6.627 12 0Z"/>
+        </svg>
+      </div>
     </div>
     <img id="card-image" class="card-icon" src="" alt="" onerror="this.style.display='none'" />
   </div>
@@ -267,7 +283,6 @@
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);
 
-        // Opcode 1: Hello -> start heartbeating and subscribe
         if (message.op === 1) {
           const interval = message.d.heartbeat_interval;
           
@@ -278,14 +293,12 @@
             }
           }, interval);
 
-          // Subscribe to user updates
           ws.send(JSON.stringify({
             op: 2,
             d: { subscribe_to_id: USER_ID }
           }));
         }
 
-        // Opcode 0: Event received (INIT_STATE or PRESENCE_UPDATE)
         if (message.op === 0 && message.d) {
           renderPresence(message.d);
         }
