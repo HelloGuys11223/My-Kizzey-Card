@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nooble's Presence</title>
   <style>
+    /* Reset and box-sizing fixed to prevent edge clipping */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       background-color: #0e0e10;
       color: #ffffff;
@@ -15,20 +22,51 @@
       align-items: center;
       gap: 20px;
       min-height: 100vh;
-      margin: 0;
-      padding: 20px;
+      /* Horizontal padding added here to ensure cards never touch screen edges */
+      padding: 20px 16px; 
     }
 
     .kizzey-card {
-      background-color: #111214;
-      border: 1px solid #232428;
+      /* Made background semi-transparent to allow ambient glow to bleed through */
+      background-color: rgba(17, 18, 20, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.05);
       border-radius: 16px;
       padding: 20px;
-      width: 380px;
+      width: 100%;
+      max-width: 380px; /* Forces cards to scale down properly on mobile */
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      /* Apple-style frosted glass effect */
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    /* Ambient background layer for the Apple Music dynamic gradient effect */
+    .ambient-bg {
+      position: absolute;
+      /* Pulled out past the edges to prevent blur edge cutoffs */
+      top: -30px;
+      left: -30px;
+      right: -30px;
+      bottom: -30px;
+      background-size: cover;
+      background-position: center;
+      /* Heavy blur, increased saturation, and lowered brightness for the glow */
+      filter: blur(30px) saturate(200%) brightness(0.6);
+      opacity: 0.55;
+      z-index: 0;
+      transition: background-image 0.8s ease-in-out;
+      pointer-events: none;
+    }
+
+    /* Wrapper for text/images to sit properly above the background blur */
+    .card-content {
+      position: relative;
+      z-index: 1;
       display: flex;
       flex-direction: column;
       gap: 16px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
 
     .section-header {
@@ -37,7 +75,7 @@
       color: #80848e;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      border-bottom: 1px solid #2b2d31;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       padding-bottom: 6px;
       margin-bottom: -6px;
     }
@@ -52,7 +90,7 @@
       display: flex;
       flex-direction: column;
       gap: 3px;
-      max-width: 270px;
+      max-width: 250px;
     }
 
     .status-type {
@@ -86,6 +124,7 @@
       border-radius: 10px;
       object-fit: cover;
       margin-left: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
   </style>
 </head>
@@ -93,23 +132,28 @@
 
   <!-- CARD 1: Discord Status -->
   <div class="kizzey-card">
-    <div class="section-header">Discord Status</div>
-    <div id="discord-container">
-      <div class="activity-item">
-        <div class="card-info">
-          <div class="title">Loading Status...</div>
+    <div class="card-content">
+      <div class="section-header">Discord Status</div>
+      <div id="discord-container">
+        <div class="activity-item">
+          <div class="card-info">
+            <div class="title">Loading Status...</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- CARD 2: Media (Last.fm) -->
-  <div class="kizzey-card">
-    <div class="section-header" style="color: #d51007;">Now Playing (Last.fm)</div>
-    <div id="media-container">
-      <div class="activity-item">
-        <div class="card-info">
-          <div class="title" style="color: #80848e; font-style: italic;">Loading media...</div>
+  <div class="kizzey-card" id="media-card">
+    <div class="ambient-bg" id="media-ambient"></div>
+    <div class="card-content">
+      <div class="section-header" style="color: #d51007;">Now Playing (Last.fm)</div>
+      <div id="media-container">
+        <div class="activity-item">
+          <div class="card-info">
+            <div class="title" style="color: #80848e; font-style: italic;">Loading media...</div>
+          </div>
         </div>
       </div>
     </div>
@@ -167,6 +211,7 @@
         const res = await fetch(WORKER_LASTFM_URL);
         const data = await res.json();
         const container = document.getElementById("media-container");
+        const ambient = document.getElementById("media-ambient");
 
         if (!data.is_playing) {
           container.innerHTML = `
@@ -175,7 +220,15 @@
                 <div class="title" style="color: #80848e; font-style: italic;">Not listening to anything</div>
               </div>
             </div>`;
+          ambient.style.backgroundImage = 'none';
           return;
+        }
+
+        // Apply Apple Music style dynamic ambient background
+        if (data.image) {
+          ambient.style.backgroundImage = `url('${data.image}')`;
+        } else {
+          ambient.style.backgroundImage = 'none';
         }
 
         container.innerHTML = `
@@ -194,7 +247,7 @@
     }
 
     fetchMedia();
-    setInterval(fetchMedia, 5000); // Refreshes every 5 seconds
+    setInterval(fetchMedia, 5000); 
   </script>
 </body>
 </html>
