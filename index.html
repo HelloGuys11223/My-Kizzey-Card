@@ -94,8 +94,8 @@
   <div class="kizzey-card">
     <div class="card-info">
       <div class="status-type" id="status-type">STATUS</div>
-      <div class="title" id="status-title">Loading...</div>
-      <div class="details" id="status-details">Fetching live data</div>
+      <div class="title" id="status-title">Connecting...</div>
+      <div class="details" id="status-details">Establishing real-time link</div>
       <div class="state state-highlight" id="status-state"></div>
       <div class="timer" id="status-timer"></div>
       <div class="footer">Made with Kizzey</div>
@@ -105,6 +105,7 @@
 
   <script>
     const USER_ID = "1167583899409465377";
+    const WS_URL = "wss://api.lanyard.rest/socket";
 
     const activityTypes = {
       0: "PLAYING",
@@ -116,6 +117,8 @@
     };
 
     let activeTimestamps = null;
+    let heartbeatInterval = null;
+    let ws = null;
 
     function formatMs(ms) {
       if (isNaN(ms) || ms < 0) return "0:00";
@@ -152,12 +155,10 @@
       const asset = act.assets.large_image || act.assets.small_image;
       if (!asset) return null;
 
-      // Direct Spotify Key
       if (asset.startsWith("spotify:")) {
         return `https://i.scdn.co/image/${asset.replace("spotify:", "")}`;
       }
 
-      // Parse Discord External Proxy (SpotiDuck / Rich Presence)
       if (asset.startsWith("mp:external/")) {
         const httpsIdx = asset.indexOf("/https/");
         if (httpsIdx !== -1) {
@@ -170,7 +171,6 @@
         return `https://media.discordapp.net/external/${asset.replace("mp:external/", "")}`;
       }
 
-      // Standard Discord Application Assets
       if (act.application_id) {
         return `https://cdn.discordapp.com/app-assets/${act.application_id}/${asset}.png`;
       }
@@ -178,96 +178,132 @@
       return null;
     }
 
-    async function fetchPresence() {
-      try {
-        const res = await fetch(`https://api.lanyard.rest/v1/users/${USER_ID}`);
-        const json = await res.json();
-        if (!json.success) return;
+    function renderPresence(data) {
+      const typeEl = document.getElementById("status-type");
+      const titleEl = document.getElementById("status-title");
+      const detailsEl = document.getElementById("status-details");
+      const stateEl = document.getElementById("status-state");
+      const imgEl = document.getElementById("card-image");
 
-        const data = json.data;
-        const typeEl = document.getElementById("status-type");
-        const titleEl = document.getElementById("status-title");
-        const detailsEl = document.getElementById("status-details");
-        const stateEl = document.getElementById("status-state");
-        const imgEl = document.getElementById("card-image");
+      if (data.listening_to_spotify) {
+        typeEl.innerText = "LISTENING TO SPOTIFY";
+        titleEl.innerText = data.spotify.song;
+        detailsEl.innerText = `by ${data.spotify.artist}`;
+        stateEl.innerText = data.spotify.album;
+        stateEl.style.display = "block";
+        activeTimestamps = {
+          start: data.spotify.timestamps?.start,
+          end: data.spotify.timestamps?.end
+        };
 
-        if (data.listening_to_spotify) {
-          typeEl.innerText = "LISTENING TO SPOTIFY";
-          titleEl.innerText = data.spotify.song;
-          detailsEl.innerText = `by ${data.spotify.artist}`;
-          stateEl.innerText = data.spotify.album;
+        const imgUrl = getImageUrl(data, null);
+        if (imgUrl) {
+          imgEl.src = imgUrl;
+          imgEl.style.display = "block";
+        } else {
+          imgEl.style.display = "none";
+        }
+      } else if (data.activities && data.activities.length > 0) {
+        const act = data.activities.find(a => a.type !== 4) || data.activities[0];
+        activeTimestamps = act.timestamps || null;
+
+        if (act.type === 4) {
+          typeEl.innerText = "CUSTOM STATUS";
+          titleEl.innerText = act.state || act.name;
+          detailsEl.innerText = act.emoji ? act.emoji.name : "";
+          stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
           stateEl.style.display = "block";
-          activeTimestamps = {
-            start: data.spotify.timestamps?.start,
-            end: data.spotify.timestamps?.end
-          };
+          imgEl.style.display = "none";
+        } else {
+          const typePrefix = activityTypes[act.type] || "ACTIVITY";
+          typeEl.innerText = `${typePrefix} ${act.name.toUpperCase()}`;
 
-          const imgUrl = getImageUrl(data, null);
+          if (act.details) {
+            titleEl.innerText = act.details;
+            detailsEl.innerText = act.state || "";
+            
+            const extraText = act.assets?.large_text;
+            if (extraText && extraText !== act.details && extraText !== act.state) {
+              stateEl.innerText = extraText;
+              stateEl.style.display = "block";
+            } else {
+              stateEl.style.display = "none";
+            }
+          } else {
+            titleEl.innerText = act.name;
+            detailsEl.innerText = act.details || "";
+            stateEl.innerText = act.state || "Active";
+            stateEl.style.display = "block";
+          }
+
+          const imgUrl = getImageUrl(data, act);
           if (imgUrl) {
             imgEl.src = imgUrl;
             imgEl.style.display = "block";
           } else {
             imgEl.style.display = "none";
           }
-        } else if (data.activities && data.activities.length > 0) {
-          const act = data.activities.find(a => a.type !== 4) || data.activities[0];
-          activeTimestamps = act.timestamps || null;
-
-          if (act.type === 4) {
-            typeEl.innerText = "CUSTOM STATUS";
-            titleEl.innerText = act.state || act.name;
-            detailsEl.innerText = act.emoji ? act.emoji.name : "";
-            stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
-            stateEl.style.display = "block";
-            imgEl.style.display = "none";
-          } else {
-            const typePrefix = activityTypes[act.type] || "ACTIVITY";
-            typeEl.innerText = `${typePrefix} ${act.name.toUpperCase()}`;
-
-            if (act.details) {
-              titleEl.innerText = act.details;
-              detailsEl.innerText = act.state || "";
-              
-              const extraText = act.assets?.large_text;
-              if (extraText && extraText !== act.details && extraText !== act.state) {
-                stateEl.innerText = extraText;
-                stateEl.style.display = "block";
-              } else {
-                stateEl.style.display = "none";
-              }
-            } else {
-              titleEl.innerText = act.name;
-              detailsEl.innerText = act.details || "";
-              stateEl.innerText = act.state || "Active";
-              stateEl.style.display = "block";
-            }
-
-            const imgUrl = getImageUrl(data, act);
-            if (imgUrl) {
-              imgEl.src = imgUrl;
-              imgEl.style.display = "block";
-            } else {
-              imgEl.style.display = "none";
-            }
-          }
-        } else {
-          typeEl.innerText = "DISCORD STATUS";
-          titleEl.innerText = "No Active Activity";
-          detailsEl.innerText = "Online";
-          stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
-          stateEl.style.display = "block";
-          activeTimestamps = null;
-          imgEl.style.display = "none";
         }
-
-        updateTimer();
-      } catch (e) {
-        console.error(e);
+      } else {
+        typeEl.innerText = "DISCORD STATUS";
+        titleEl.innerText = "No Active Activity";
+        detailsEl.innerText = "Online";
+        stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
+        stateEl.style.display = "block";
+        activeTimestamps = null;
+        imgEl.style.display = "none";
       }
+
+      updateTimer();
     }
 
-    fetchPresence();
-    setInterval(fetchPresence, 5000);
+    function connectWebSocket() {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        console.log("Connected to Lanyard WebSocket");
+      };
+
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+
+        // Opcode 1: Hello -> start heartbeating and subscribe
+        if (message.op === 1) {
+          const interval = message.d.heartbeat_interval;
+          
+          if (heartbeatInterval) clearInterval(heartbeatInterval);
+          heartbeatInterval = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ op: 3 }));
+            }
+          }, interval);
+
+          // Subscribe to user updates
+          ws.send(JSON.stringify({
+            op: 2,
+            d: { subscribe_to_id: USER_ID }
+          }));
+        }
+
+        // Opcode 0: Event received (INIT_STATE or PRESENCE_UPDATE)
+        if (message.op === 0 && message.d) {
+          renderPresence(message.d);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket closed. Reconnecting in 3s...");
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        setTimeout(connectWebSocket, 3000);
+      };
+
+      ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
+        ws.close();
+      };
+    }
+
+    connectWebSocket();
     setInterval(updateTimer, 1000);
   </script>
 </body>
