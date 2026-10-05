@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nooble's Presence Card</title>
+  <title>Nooble's Presence</title>
   <style>
     body {
       background-color: #0e0e10;
       color: #ffffff;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
+      gap: 20px;
       min-height: 100vh;
       margin: 0;
       padding: 20px;
@@ -29,17 +31,21 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
 
+    .section-header {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #80848e;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid #2b2d31;
+      padding-bottom: 6px;
+      margin-bottom: -6px;
+    }
+
     .activity-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #1e1f22;
-    }
-
-    .activity-item:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
     }
 
     .card-info {
@@ -74,14 +80,6 @@
       text-overflow: ellipsis;
     }
 
-    .timer {
-      font-size: 0.72rem;
-      color: #1db954;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      margin-top: 2px;
-    }
-
     .card-icon {
       width: 64px;
       height: 64px;
@@ -89,146 +87,59 @@
       object-fit: cover;
       margin-left: 10px;
     }
-
-    .footer {
-      font-size: 0.7rem;
-      color: #80848e;
-      text-align: center;
-      margin-top: 4px;
-    }
   </style>
 </head>
 <body>
 
-  <div class="kizzey-card" id="card-container">
-    <div class="activity-item">
-      <div class="card-info">
-        <div class="status-type">STATUS</div>
-        <div class="title">Connecting...</div>
-        <div class="details">Establishing real-time link</div>
+  <!-- CARD 1: Discord Status -->
+  <div class="kizzey-card">
+    <div class="section-header">Discord Status</div>
+    <div id="discord-container">
+      <div class="activity-item">
+        <div class="card-info">
+          <div class="title">Loading Status...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD 2: Media (Last.fm) -->
+  <div class="kizzey-card">
+    <div class="section-header" style="color: #d51007;">Now Playing (Last.fm)</div>
+    <div id="media-container">
+      <div class="activity-item">
+        <div class="card-info">
+          <div class="title" style="color: #80848e; font-style: italic;">Loading media...</div>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
+    // --- DISCORD (LANYARD) LOGIC ---
     const USER_ID = "1167583899409465377";
     const WS_URL = "wss://api.lanyard.rest/socket";
-
-    const activityTypes = { 0: "PLAYING", 1: "STREAMING", 2: "LISTENING TO", 3: "WATCHING", 5: "COMPETING IN" };
-
-    let activeTimers = [];
-    let heartbeatInterval = null;
     let ws = null;
+    let heartbeatInterval = null;
 
-    function formatMs(ms) {
-      if (isNaN(ms) || ms < 0) return "0:00";
-      const totalSec = Math.floor(ms / 1000);
-      const min = Math.floor(totalSec / 60);
-      const sec = Math.floor(totalSec % 60);
-      return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-    }
+    function renderDiscord(data) {
+      const container = document.getElementById("discord-container");
+      let dStatus = data.discord_status || "offline";
+      let statusColor = "#747f8d";
+      
+      if (dStatus === "online") statusColor = "#23A55A";
+      else if (dStatus === "idle") statusColor = "#F0B132";
+      else if (dStatus === "dnd") statusColor = "#F23F42";
 
-    function updateTimers() {
-      const now = Date.now();
-      activeTimers.forEach(t => {
-        const el = document.getElementById(t.id);
-        if (!el) return;
-        const elapsed = Math.max(0, now - t.start);
-        if (t.end) {
-          el.innerText = `${formatMs(elapsed)} / ${formatMs(t.end - t.start)}`;
-        } else {
-          el.innerText = `${formatMs(elapsed)} elapsed`;
-        }
-      });
-    }
+      let statusText = dStatus === "offline" ? "OFFLINE / INVISIBLE" : dStatus.toUpperCase();
 
-    function getImageUrl(data, act) {
-      if (act === "spotify" && data.spotify?.album_art_url) return data.spotify.album_art_url;
-      if (!act || !act.assets) return null;
-      const asset = act.assets.large_image || act.assets.small_image;
-      if (!asset) return null;
-
-      if (asset.startsWith("spotify:")) return `https://i.scdn.co/image/${asset.replace("spotify:", "")}`;
-      if (asset.startsWith("mp:external/")) {
-        if (asset.includes("/https/")) return "https://" + asset.substring(asset.indexOf("/https/") + 7);
-        if (asset.includes("/http/")) return "http://" + asset.substring(asset.indexOf("/http/") + 6);
-        return `https://media.discordapp.net/external/${asset.replace("mp:external/", "")}`;
-      }
-      if (act.application_id) return `https://cdn.discordapp.com/app-assets/${act.application_id}/${asset}.png`;
-      return null;
-    }
-
-    function renderPresence(data) {
-      const container = document.getElementById("card-container");
-      container.innerHTML = "";
-      activeTimers = [];
-
-      let itemsCount = 0;
-
-      if (data.listening_to_spotify) {
-        itemsCount++;
-        const timerId = `timer-spotify`;
-        if (data.spotify.timestamps?.start) {
-          activeTimers.push({ id: timerId, start: data.spotify.timestamps.start, end: data.spotify.timestamps.end });
-        }
-        const imgUrl = getImageUrl(data, "spotify");
-        
-        container.innerHTML += `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="status-type">LISTENING TO SPOTIFY</div>
-              <div class="title">${data.spotify.song}</div>
-              <div class="details">by ${data.spotify.artist}</div>
-              <div class="state">${data.spotify.album}</div>
-              <div class="timer" id="${timerId}"></div>
-            </div>
-            ${imgUrl ? `<img class="card-icon" src="${imgUrl}" />` : ''}
-          </div>`;
-      }
-
-      if (data.activities && data.activities.length > 0) {
-        const otherActivities = data.activities.filter(a => {
-          if (a.type === 4) return false;
-          if (data.listening_to_spotify && a.name.toLowerCase() === "spotify") return false;
-          return true;
-        });
-
-        otherActivities.forEach((act, idx) => {
-          itemsCount++;
-          const timerId = `timer-${idx}`;
-          if (act.timestamps?.start) {
-            activeTimers.push({ id: timerId, start: act.timestamps.start, end: act.timestamps.end });
-          }
-
-          const typeLabel = `${activityTypes[act.type] || "ACTIVITY"} ${act.name.toUpperCase()}`;
-          const imgUrl = getImageUrl(data, act);
-
-          container.innerHTML += `
-            <div class="activity-item">
-              <div class="card-info">
-                <div class="status-type">${typeLabel}</div>
-                <div class="title">${act.details || act.name}</div>
-                <div class="details">${act.details ? (act.state || "") : ""}</div>
-                <div class="timer" id="${timerId}"></div>
-              </div>
-              ${imgUrl ? `<img class="card-icon" src="${imgUrl}" />` : ''}
-            </div>`;
-        });
-      }
-
-      if (itemsCount === 0) {
-        container.innerHTML = `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="status-type">DISCORD STATUS</div>
-              <div class="title">No Active Activity</div>
-              <div class="details">Status: ${(data.discord_status || "ONLINE").toUpperCase()}</div>
-            </div>
-          </div>`;
-      }
-
-      container.innerHTML += `<div class="footer">Template from Kizzey</div>`;
-      updateTimers();
+      container.innerHTML = `
+        <div class="activity-item">
+          <div class="card-info">
+            <div class="status-type">CURRENT STATE</div>
+            <div class="title" style="color: ${statusColor};">${statusText}</div>
+          </div>
+        </div>`;
     }
 
     function connectWebSocket() {
@@ -242,13 +153,49 @@
           }, message.d.heartbeat_interval);
           ws.send(JSON.stringify({ op: 2, d: { subscribe_to_id: USER_ID } }));
         }
-        if (message.op === 0 && message.d) renderPresence(message.d);
+        if (message.op === 0 && message.d) renderDiscord(message.d);
       };
       ws.onclose = () => setTimeout(connectWebSocket, 3000);
     }
-
     connectWebSocket();
-    setInterval(updateTimers, 1000);
+
+    // --- LAST.FM API LOGIC ---
+    // REPLACE WITH YOUR ACTUAL CLOUDFLARE WORKER URL
+    const WORKER_LASTFM_URL = "https://YOUR_CLOUDFLARE_WORKER_URL.workers.dev/api/lastfm";
+
+    async function fetchMedia() {
+      try {
+        const res = await fetch(WORKER_LASTFM_URL);
+        const data = await res.json();
+        const container = document.getElementById("media-container");
+
+        if (!data.is_playing) {
+          container.innerHTML = `
+            <div class="activity-item">
+              <div class="card-info">
+                <div class="title" style="color: #80848e; font-style: italic;">Not listening to anything</div>
+              </div>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="status-type" style="color: #d51007;">SCROBBLING</div>
+              <div class="title">${data.song}</div>
+              <div class="details">by ${data.artist}</div>
+              <div class="state">${data.album}</div>
+            </div>
+            ${data.image ? `<img class="card-icon" src="${data.image}" />` : ''}
+          </div>`;
+      } catch (err) {
+        console.error("Last.fm Fetch Error:", err);
+      }
+    }
+
+    fetchMedia();
+    setInterval(fetchMedia, 5000); // Refreshes every 5 seconds
   </script>
 </body>
 </html>
