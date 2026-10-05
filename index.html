@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nooble's Kizzey Presence</title>
+  <title>Nooble's Presence Card</title>
   <style>
     body {
       background-color: #0e0e10;
       color: #ffffff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
       margin: 0;
+      padding: 20px;
     }
 
     .kizzey-card {
@@ -21,30 +22,43 @@
       border: 1px solid #232428;
       border-radius: 16px;
       padding: 20px;
-      width: 360px;
+      width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .activity-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      padding-bottom: 12px;
+      border-bottom: 1px solid #1e1f22;
+    }
+
+    .activity-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
     }
 
     .card-info {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      max-width: 240px;
+      gap: 3px;
+      max-width: 270px;
     }
 
     .status-type {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 700;
-      letter-spacing: 0.05em;
       color: #949ba4;
       text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     .title {
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 700;
       color: #f2f3f5;
       white-space: nowrap;
@@ -53,86 +67,56 @@
     }
 
     .details, .state {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: #b5bac1;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .state-highlight {
-      color: #23a55a;
-      font-weight: 600;
-    }
-
     .timer {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: #1db954;
       font-weight: 600;
       font-variant-numeric: tabular-nums;
       margin-top: 2px;
     }
 
+    .card-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 10px;
+      object-fit: cover;
+      margin-left: 10px;
+    }
+
     .footer {
-      margin-top: 6px;
       font-size: 0.7rem;
       color: #80848e;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .gemini-logo {
-      width: 12px;
-      height: 12px;
-      fill: currentColor;
-      opacity: 0.5;
-      flex-shrink: 0;
-    }
-
-    .card-icon {
-      width: 76px;
-      height: 76px;
-      border-radius: 12px;
-      object-fit: cover;
-      margin-left: 12px;
-      display: none;
+      text-align: center;
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
 
-  <div class="kizzey-card">
-    <div class="card-info">
-      <div class="status-type" id="status-type">STATUS</div>
-      <div class="title" id="status-title">Connecting...</div>
-      <div class="details" id="status-details">Establishing real-time link</div>
-      <div class="state state-highlight" id="status-state"></div>
-      <div class="timer" id="status-timer"></div>
-      <div class="footer">
-        <span>Template from Kizzey, Assisted by Gemini</span>
-        <svg class="gemini-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 0C12 6.627 17.373 12 24 12C17.373 12 12 17.373 12 24C12 17.373 6.627 12 0 12C6.627 12 12 6.627 12 0Z"/>
-        </svg>
+  <div class="kizzey-card" id="card-container">
+    <div class="activity-item">
+      <div class="card-info">
+        <div class="status-type">STATUS</div>
+        <div class="title">Connecting...</div>
+        <div class="details">Establishing real-time link</div>
       </div>
     </div>
-    <img id="card-image" class="card-icon" src="" alt="" onerror="this.style.display='none'" />
   </div>
 
   <script>
     const USER_ID = "1167583899409465377";
     const WS_URL = "wss://api.lanyard.rest/socket";
 
-    const activityTypes = {
-      0: "PLAYING",
-      1: "STREAMING",
-      2: "LISTENING TO",
-      3: "WATCHING",
-      4: "CUSTOM STATUS",
-      5: "COMPETING IN"
-    };
+    const activityTypes = { 0: "PLAYING", 1: "STREAMING", 2: "LISTENING TO", 3: "WATCHING", 5: "COMPETING IN" };
 
-    let activeTimestamps = null;
+    let activeTimers = [];
     let heartbeatInterval = null;
     let ws = null;
 
@@ -144,182 +128,127 @@
       return `${min}:${sec < 10 ? '0' : ''}${sec}`;
     }
 
-    function updateTimer() {
-      const timerEl = document.getElementById("status-timer");
-      if (!activeTimestamps || !activeTimestamps.start) {
-        timerEl.innerText = "";
-        return;
-      }
-
+    function updateTimers() {
       const now = Date.now();
-      const elapsedMs = Math.max(0, now - activeTimestamps.start);
-
-      if (activeTimestamps.end) {
-        const totalMs = activeTimestamps.end - activeTimestamps.start;
-        timerEl.innerText = `${formatMs(elapsedMs)} / ${formatMs(totalMs)}`;
-      } else {
-        timerEl.innerText = `${formatMs(elapsedMs)} elapsed`;
-      }
+      activeTimers.forEach(t => {
+        const el = document.getElementById(t.id);
+        if (!el) return;
+        const elapsed = Math.max(0, now - t.start);
+        if (t.end) {
+          el.innerText = `${formatMs(elapsed)} / ${formatMs(t.end - t.start)}`;
+        } else {
+          el.innerText = `${formatMs(elapsed)} elapsed`;
+        }
+      });
     }
 
     function getImageUrl(data, act) {
-      if (data.listening_to_spotify && data.spotify?.album_art_url) {
-        return data.spotify.album_art_url;
-      }
-      
+      if (act === "spotify" && data.spotify?.album_art_url) return data.spotify.album_art_url;
       if (!act || !act.assets) return null;
       const asset = act.assets.large_image || act.assets.small_image;
       if (!asset) return null;
 
-      // Handle direct Spotify image hashes
-      if (asset.startsWith("spotify:")) {
-        return `https://i.scdn.co/image/${asset.replace("spotify:", "")}`;
-      }
-
-      // Handle SpotiDuck & external proxy strings (mp:external/...)
-      if (asset.includes("https/")) {
-        return "https://" + asset.substring(asset.indexOf("https/") + 6);
-      }
-      if (asset.includes("http/")) {
-        return "http://" + asset.substring(asset.indexOf("http/") + 5);
-      }
-
+      if (asset.startsWith("spotify:")) return `https://i.scdn.co/image/${asset.replace("spotify:", "")}`;
       if (asset.startsWith("mp:external/")) {
+        if (asset.includes("/https/")) return "https://" + asset.substring(asset.indexOf("/https/") + 7);
+        if (asset.includes("/http/")) return "http://" + asset.substring(asset.indexOf("/http/") + 6);
         return `https://media.discordapp.net/external/${asset.replace("mp:external/", "")}`;
       }
-
-      // Standard Discord application asset
-      if (act.application_id) {
-        return `https://cdn.discordapp.com/app-assets/${act.application_id}/${asset}.png`;
-      }
-
+      if (act.application_id) return `https://cdn.discordapp.com/app-assets/${act.application_id}/${asset}.png`;
       return null;
     }
 
     function renderPresence(data) {
-      const typeEl = document.getElementById("status-type");
-      const titleEl = document.getElementById("status-title");
-      const detailsEl = document.getElementById("status-details");
-      const stateEl = document.getElementById("status-state");
-      const imgEl = document.getElementById("card-image");
+      const container = document.getElementById("card-container");
+      container.innerHTML = "";
+      activeTimers = [];
+
+      let itemsCount = 0;
 
       if (data.listening_to_spotify) {
-        typeEl.innerText = "LISTENING TO SPOTIFY";
-        titleEl.innerText = data.spotify.song;
-        detailsEl.innerText = `by ${data.spotify.artist}`;
-        stateEl.innerText = data.spotify.album;
-        stateEl.style.display = "block";
-        activeTimestamps = {
-          start: data.spotify.timestamps?.start,
-          end: data.spotify.timestamps?.end
-        };
-
-        const imgUrl = getImageUrl(data, null);
-        if (imgUrl) {
-          imgEl.src = imgUrl;
-          imgEl.style.display = "block";
-        } else {
-          imgEl.style.display = "none";
+        itemsCount++;
+        const timerId = `timer-spotify`;
+        if (data.spotify.timestamps?.start) {
+          activeTimers.push({ id: timerId, start: data.spotify.timestamps.start, end: data.spotify.timestamps.end });
         }
-      } else if (data.activities && data.activities.length > 0) {
-        const act = data.activities.find(a => a.type !== 4) || data.activities[0];
-        activeTimestamps = act.timestamps || null;
-
-        if (act.type === 4) {
-          typeEl.innerText = "CUSTOM STATUS";
-          titleEl.innerText = act.state || act.name;
-          detailsEl.innerText = act.emoji ? act.emoji.name : "";
-          stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
-          stateEl.style.display = "block";
-          imgEl.style.display = "none";
-        } else {
-          const typePrefix = activityTypes[act.type] || "ACTIVITY";
-          typeEl.innerText = `${typePrefix} ${act.name.toUpperCase()}`;
-
-          if (act.details) {
-            titleEl.innerText = act.details;
-            detailsEl.innerText = act.state || "";
-            
-            const extraText = act.assets?.large_text;
-            if (extraText && extraText !== act.details && extraText !== act.state) {
-              stateEl.innerText = extraText;
-              stateEl.style.display = "block";
-            } else {
-              stateEl.style.display = "none";
-            }
-          } else {
-            titleEl.innerText = act.name;
-            detailsEl.innerText = act.details || "";
-            stateEl.innerText = act.state || "Active";
-            stateEl.style.display = "block";
-          }
-
-          const imgUrl = getImageUrl(data, act);
-          if (imgUrl) {
-            imgEl.src = imgUrl;
-            imgEl.style.display = "block";
-          } else {
-            imgEl.style.display = "none";
-          }
-        }
-      } else {
-        typeEl.innerText = "DISCORD STATUS";
-        titleEl.innerText = "No Active Activity";
-        detailsEl.innerText = "Online";
-        stateEl.innerText = (data.discord_status || "ONLINE").toUpperCase();
-        stateEl.style.display = "block";
-        activeTimestamps = null;
-        imgEl.style.display = "none";
+        const imgUrl = getImageUrl(data, "spotify");
+        
+        container.innerHTML += `
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="status-type">LISTENING TO SPOTIFY</div>
+              <div class="title">${data.spotify.song}</div>
+              <div class="details">by ${data.spotify.artist}</div>
+              <div class="state">${data.spotify.album}</div>
+              <div class="timer" id="${timerId}"></div>
+            </div>
+            ${imgUrl ? `<img class="card-icon" src="${imgUrl}" />` : ''}
+          </div>`;
       }
 
-      updateTimer();
+      if (data.activities && data.activities.length > 0) {
+        const otherActivities = data.activities.filter(a => {
+          if (a.type === 4) return false;
+          if (data.listening_to_spotify && a.name.toLowerCase() === "spotify") return false;
+          return true;
+        });
+
+        otherActivities.forEach((act, idx) => {
+          itemsCount++;
+          const timerId = `timer-${idx}`;
+          if (act.timestamps?.start) {
+            activeTimers.push({ id: timerId, start: act.timestamps.start, end: act.timestamps.end });
+          }
+
+          const typeLabel = `${activityTypes[act.type] || "ACTIVITY"} ${act.name.toUpperCase()}`;
+          const imgUrl = getImageUrl(data, act);
+
+          container.innerHTML += `
+            <div class="activity-item">
+              <div class="card-info">
+                <div class="status-type">${typeLabel}</div>
+                <div class="title">${act.details || act.name}</div>
+                <div class="details">${act.details ? (act.state || "") : ""}</div>
+                <div class="timer" id="${timerId}"></div>
+              </div>
+              ${imgUrl ? `<img class="card-icon" src="${imgUrl}" />` : ''}
+            </div>`;
+        });
+      }
+
+      if (itemsCount === 0) {
+        container.innerHTML = `
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="status-type">DISCORD STATUS</div>
+              <div class="title">No Active Activity</div>
+              <div class="details">Status: ${(data.discord_status || "ONLINE").toUpperCase()}</div>
+            </div>
+          </div>`;
+      }
+
+      container.innerHTML += `<div class="footer">Template from Kizzey</div>`;
+      updateTimers();
     }
 
     function connectWebSocket() {
       ws = new WebSocket(WS_URL);
-
-      ws.onopen = () => {
-        console.log("Connected to Lanyard WebSocket");
-      };
-
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);
-
         if (message.op === 1) {
-          const interval = message.d.heartbeat_interval;
-          
           if (heartbeatInterval) clearInterval(heartbeatInterval);
           heartbeatInterval = setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ op: 3 }));
-            }
-          }, interval);
-
-          ws.send(JSON.stringify({
-            op: 2,
-            d: { subscribe_to_id: USER_ID }
-          }));
+            if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 3 }));
+          }, message.d.heartbeat_interval);
+          ws.send(JSON.stringify({ op: 2, d: { subscribe_to_id: USER_ID } }));
         }
-
-        if (message.op === 0 && message.d) {
-          renderPresence(message.d);
-        }
+        if (message.op === 0 && message.d) renderPresence(message.d);
       };
-
-      ws.onclose = () => {
-        console.log("WebSocket closed. Reconnecting in 3s...");
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
-        setTimeout(connectWebSocket, 3000);
-      };
-
-      ws.onerror = (err) => {
-        console.error("WebSocket error:", err);
-        ws.close();
-      };
+      ws.onclose = () => setTimeout(connectWebSocket, 3000);
     }
 
     connectWebSocket();
-    setInterval(updateTimer, 1000);
+    setInterval(updateTimers, 1000);
   </script>
 </body>
 </html>
