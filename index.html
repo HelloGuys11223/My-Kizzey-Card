@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nooble's Presence</title>
   <style>
-    /* Reset and box-sizing fixed to prevent edge clipping */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -22,37 +21,31 @@
       align-items: center;
       gap: 20px;
       min-height: 100vh;
-      /* Horizontal padding added here to ensure cards never touch screen edges */
       padding: 20px 16px; 
     }
 
     .kizzey-card {
-      /* Made background semi-transparent to allow ambient glow to bleed through */
       background-color: rgba(17, 18, 20, 0.65);
       border: 1px solid rgba(255, 255, 255, 0.05);
       border-radius: 16px;
       padding: 20px;
       width: 100%;
-      max-width: 380px; /* Forces cards to scale down properly on mobile */
+      max-width: 380px;
       position: relative;
       overflow: hidden;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-      /* Apple-style frosted glass effect */
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
     }
 
-    /* Ambient background layer for the Apple Music dynamic gradient effect */
     .ambient-bg {
       position: absolute;
-      /* Pulled out past the edges to prevent blur edge cutoffs */
       top: -30px;
       left: -30px;
       right: -30px;
       bottom: -30px;
       background-size: cover;
       background-position: center;
-      /* Heavy blur, increased saturation, and lowered brightness for the glow */
       filter: blur(30px) saturate(200%) brightness(0.6);
       opacity: 0.55;
       z-index: 0;
@@ -60,7 +53,6 @@
       pointer-events: none;
     }
 
-    /* Wrapper for text/images to sit properly above the background blur */
     .card-content {
       position: relative;
       z-index: 1;
@@ -130,7 +122,7 @@
 </head>
 <body>
 
-  <!-- CARD 1: Discord Status -->
+  <!-- CARD 1: Discord Status & RPC (SpotiDuck, Games, etc.) -->
   <div class="kizzey-card">
     <div class="card-content">
       <div class="section-header">Discord Status</div>
@@ -166,24 +158,62 @@
     let ws = null;
     let heartbeatInterval = null;
 
+    function getAssetUrl(appId, assetId) {
+      if (!assetId) return "";
+      if (assetId.startsWith("mp:external/")) {
+        return assetId.replace("mp:external/", "https://media.discordapp.net/external/");
+      }
+      if (assetId.startsWith("spotify:")) {
+        return `https://i.scdn.co/image/${assetId.split(":")[1]}`;
+      }
+      return `https://cdn.discordapp.com/app-assets/${appId}/${assetId}.png`;
+    }
+
     function renderDiscord(data) {
       const container = document.getElementById("discord-container");
+      
       let dStatus = data.discord_status || "offline";
       let statusColor = "#747f8d";
-      
       if (dStatus === "online") statusColor = "#23A55A";
       else if (dStatus === "idle") statusColor = "#F0B132";
       else if (dStatus === "dnd") statusColor = "#F23F42";
-
       let statusText = dStatus === "offline" ? "OFFLINE / INVISIBLE" : dStatus.toUpperCase();
 
-      container.innerHTML = `
+      let html = `
         <div class="activity-item">
           <div class="card-info">
             <div class="status-type">CURRENT STATE</div>
             <div class="title" style="color: ${statusColor};">${statusText}</div>
           </div>
         </div>`;
+
+      // Renders active Rich Presence items (like SpotiDuck or games)
+      if (data.activities && data.activities.length > 0) {
+        data.activities.forEach(act => {
+          if (act.type === 4) return; // Skip custom status text
+
+          let imgUrl = "";
+          if (act.name === "Spotify" && data.spotify) {
+             imgUrl = data.spotify.album_art_url;
+          } else if (act.assets && act.assets.large_image) {
+             imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
+          }
+
+          const actionText = act.type === 2 ? 'LISTENING TO' : 'PLAYING';
+
+          html += `
+          <div class="activity-item" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+            <div class="card-info">
+              <div class="status-type" style="color: #5865F2;">${actionText} ${act.name.toUpperCase()}</div>
+              ${act.details ? `<div class="title">${act.details}</div>` : ''}
+              ${act.state ? `<div class="details">${act.state}</div>` : ''}
+            </div>
+            ${imgUrl ? `<img class="card-icon" src="${imgUrl}" onerror="this.style.display='none'" />` : ''}
+          </div>`;
+        });
+      }
+
+      container.innerHTML = html;
     }
 
     function connectWebSocket() {
@@ -205,6 +235,7 @@
 
     // --- LAST.FM API LOGIC ---
     const WORKER_LASTFM_URL = "https://my-rpc.grammar-checker.workers.dev/api/lastfm";
+    const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
 
     async function fetchMedia() {
       try {
@@ -224,12 +255,8 @@
           return;
         }
 
-        // Apply Apple Music style dynamic ambient background
-        if (data.image) {
-          ambient.style.backgroundImage = `url('${data.image}')`;
-        } else {
-          ambient.style.backgroundImage = 'none';
-        }
+        const finalImage = data.image ? data.image : FALLBACK_IMAGE;
+        ambient.style.backgroundImage = `url('${finalImage}')`;
 
         container.innerHTML = `
           <div class="activity-item">
@@ -239,7 +266,7 @@
               <div class="details">by ${data.artist}</div>
               <div class="state">${data.album}</div>
             </div>
-            ${data.image ? `<img class="card-icon" src="${data.image}" />` : ''}
+            <img class="card-icon" src="${finalImage}" />
           </div>`;
       } catch (err) {
         console.error("Last.fm Fetch Error:", err);
