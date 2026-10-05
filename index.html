@@ -171,22 +171,24 @@
       const asset = act.assets.large_image || act.assets.small_image;
       if (!asset) return null;
 
+      // Handle direct Spotify image hashes
       if (asset.startsWith("spotify:")) {
         return `https://i.scdn.co/image/${asset.replace("spotify:", "")}`;
       }
 
+      // Handle SpotiDuck & external proxy strings (mp:external/...)
+      if (asset.includes("https/")) {
+        return "https://" + asset.substring(asset.indexOf("https/") + 6);
+      }
+      if (asset.includes("http/")) {
+        return "http://" + asset.substring(asset.indexOf("http/") + 5);
+      }
+
       if (asset.startsWith("mp:external/")) {
-        const httpsIdx = asset.indexOf("/https/");
-        if (httpsIdx !== -1) {
-          return "https://" + asset.substring(httpsIdx + 7);
-        }
-        const httpIdx = asset.indexOf("/http/");
-        if (httpIdx !== -1) {
-          return "http://" + asset.substring(httpIdx + 6);
-        }
         return `https://media.discordapp.net/external/${asset.replace("mp:external/", "")}`;
       }
 
+      // Standard Discord application asset
       if (act.application_id) {
         return `https://cdn.discordapp.com/app-assets/${act.application_id}/${asset}.png`;
       }
