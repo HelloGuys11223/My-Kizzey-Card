@@ -286,7 +286,13 @@
     }
 
     function connectWebSocket() {
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
+
       ws = new WebSocket(WS_URL);
+      
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
@@ -304,19 +310,26 @@
           console.error("WS Message Error:", e);
         }
       };
+
       ws.onerror = (err) => {
         console.error("WebSocket Error:", err);
-        document.getElementById("discord-container").innerHTML = `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="title" style="color: #80848e; font-style: italic;">Connection error</div>
-            </div>
-          </div>`;
       };
+
       ws.onclose = () => {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
         setTimeout(connectWebSocket, 3000);
       };
     }
+
+    // Automatically reconnect when returning to the tab from another app
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          connectWebSocket();
+        }
+      }
+    });
+
     connectWebSocket();
 
     // --- LAST.FM API LOGIC ---
@@ -368,13 +381,6 @@
           </div>`;
       } catch (err) {
         console.error("Last.fm Fetch Error:", err);
-        container.innerHTML = `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="title" style="color: #80848e; font-style: italic;">Last.fm unavailable</div>
-            </div>
-          </div>`;
-        ambient.style.backgroundImage = 'none';
       }
     }
 
