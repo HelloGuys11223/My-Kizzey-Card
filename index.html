@@ -261,9 +261,27 @@
     }
     connectWebSocket();
 
-    // --- LAST.FM API LOGIC ---
+    // --- LAST.FM & ITUNES ALBUM ARTWORK FALLBACK LOGIC ---
     const WORKER_LASTFM_URL = "https://my-rpc.grammar-checker.workers.dev/api/lastfm";
     const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
+
+    async function fetchAlbumArtFromItunes(artist, song) {
+      try {
+        const query = encodeURIComponent(`${artist} ${song}`);
+        const res = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+          let artwork = data.results[0].artworkUrl100;
+          if (artwork) {
+            // Upscale image resolution from 100x100 to 600x600 for sharp quality
+            return artwork.replace('100x100bb', '600x600bb');
+          }
+        }
+      } catch (e) {
+        console.error("iTunes Fetch Error:", e);
+      }
+      return null;
+    }
 
     async function fetchMedia() {
       try {
@@ -283,7 +301,19 @@
           return;
         }
 
-        const finalImage = data.image ? data.image : FALLBACK_IMAGE;
+        // 1. Try Last.fm image first
+        let finalImage = data.image;
+
+        // 2. If Last.fm image is missing, fetch from iTunes Search API using artist + song name
+        if (!finalImage || finalImage === "") {
+          finalImage = await fetchAlbumArtFromItunes(data.artist, data.song);
+        }
+
+        // 3. If iTunes also fails, fall back to the star icon
+        if (!finalImage) {
+          finalImage = FALLBACK_IMAGE;
+        }
+
         ambient.style.backgroundImage = `url('${finalImage}')`;
 
         container.innerHTML = `
@@ -298,13 +328,6 @@
           </div>`;
       } catch (err) {
         console.error("Last.fm Fetch Error:", err);
-        const container = document.getElementById("media-container");
-        container.innerHTML = `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="title" style="color: #80848e; font-style: italic;">Unable to load media</div>
-            </div>
-          </div>`;
       }
     }
 
