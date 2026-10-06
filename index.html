@@ -91,6 +91,7 @@
       align-items: flex-start;
       gap: 12px;
       width: 100%;
+      margin-top: 10px;
     }
     .card-info {
       flex: 1;
@@ -129,40 +130,11 @@
       flex-shrink: 0;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .lyrics-container {
-      margin-top: 12px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-      padding-top: 12px;
-      height: 110px;
-      overflow: hidden;
-      position: relative;
-      mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-    }
-    .lyrics-wrapper {
-      transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding-top: 35px;
-    }
-    .lyric-line {
-      font-size: 0.82rem;
-      color: #80848e;
-      transition: color 0.2s ease, font-weight 0.2s ease, transform 0.2s ease;
-      line-height: 1.35;
-    }
-    .lyric-line.active {
-      color: #ffffff;
-      font-weight: 700;
-      transform: scale(1.03);
-      transform-origin: left center;
-    }
-    .lyrics-status {
-      font-size: 0.75rem;
-      color: #80848e;
-      font-style: italic;
-      padding-top: 10px;
+    .time-text {
+      font-size: 0.75rem; 
+      color: #b5bac1; 
+      margin-top: 4px; 
+      font-variant-numeric: tabular-nums;
     }
   </style>
 </head>
@@ -171,7 +143,7 @@
   <button class="pip-btn" id="pip-toggle-btn" onclick="togglePiP()">Pop Out Window</button>
 
   <div class="cards-wrapper" id="cards-wrapper">
-    <!-- CARD 1 -->
+    <!-- DISCORD CARD -->
     <div class="kizzey-card" id="discord-card">
       <div class="ambient-bg" id="discord-ambient"></div>
       <div class="card-content">
@@ -186,7 +158,7 @@
       </div>
     </div>
 
-    <!-- CARD 2 -->
+    <!-- LAST.FM CARD -->
     <div class="kizzey-card" id="media-card">
       <div class="ambient-bg" id="media-ambient"></div>
       <div class="card-content">
@@ -203,9 +175,11 @@
   </div>
 
   <script>
-    // Failsafe document reference that cleanly updates only if PiP is actually opened
+    // Active document switcher for PiP support
     let activeDoc = document;
 
+    const USER_ID = "1167583899409465377";
+    
     function formatTime(ms) {
       if (ms < 0) return "0:00";
       const totalSeconds = Math.floor(ms / 1000);
@@ -218,124 +192,19 @@
       return m + ":" + sStr;
     }
 
-    // --- REAL-TIME LYRICS ENGINE ---
-    let currentTrackKey = "";
-    let parsedLyrics = [];
-    let trackStartTime = 0;
-    let activeLineIndex = -1;
-
-    function parseLRC(lrcText) {
-      if (!lrcText) return [];
-      const lines = lrcText.split('\n');
-      const result = [];
-      const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
-      for (let i = 0; i < lines.length; i++) {
-        const match = timeRegex.exec(lines[i]);
-        if (match) {
-          const minutes = parseInt(match[1], 10);
-          const seconds = parseInt(match[2], 10);
-          let msStr = match[3];
-          if (msStr.length === 2) msStr += '0';
-          const ms = parseInt(msStr.substring(0, 3), 10);
-          const totalMs = (minutes * 60 + seconds) * 1000 + ms;
-          const text = lines[i].replace(timeRegex, '').trim();
-          if (text) result.push({ time: totalMs, text: text });
-        }
-      }
-      return result.sort(function(a, b) { return a.time - b.time; });
-    }
-
-    async function fetchSyncedLyrics(artist, title) {
-      try {
-        let res = await fetch("https://lrclib.net/api/get?artist_name=" + encodeURIComponent(artist) + "&track_name=" + encodeURIComponent(title));
-        if (res.ok) {
-          const data = await res.json();
-          if (data.syncedLyrics) return parseLRC(data.syncedLyrics);
-        }
-        res = await fetch("https://lrclib.net/api/search?q=" + encodeURIComponent(artist + " " + title));
-        if (res.ok) {
-          const searchData = await res.json();
-          if (searchData.length > 0 && searchData[0].syncedLyrics) return parseLRC(searchData[0].syncedLyrics);
-        }
-      } catch (e) {
-        console.error("Lyrics fetch failed", e);
-      }
-      return null;
-    }
-
-    function updateLyricsSync() {
-      if (!parsedLyrics || parsedLyrics.length === 0 || !trackStartTime) return;
-      const wrapper = activeDoc.getElementById("lyrics-wrapper");
-      if (!wrapper) return;
-
-      const elapsed = Date.now() - trackStartTime;
-      let newActiveIndex = -1;
-      for (let i = 0; i < parsedLyrics.length; i++) {
-        if (elapsed >= parsedLyrics[i].time) newActiveIndex = i;
-        else break;
-      }
-
-      if (newActiveIndex !== activeLineIndex) {
-        activeLineIndex = newActiveIndex;
-        const lineElements = wrapper.querySelectorAll('.lyric-line');
-        for (let i = 0; i < lineElements.length; i++) {
-          if (i === activeLineIndex) {
-            lineElements[i].classList.add('active');
-            const offset = lineElements[i].offsetTop - 35;
-            wrapper.style.transform = "translateY(-" + Math.max(0, offset) + "px)";
-          } else {
-            lineElements[i].classList.remove('active');
-          }
-        }
-      }
-    }
-
-    async function setupLyricsForTrack(artist, title, startTime) {
-      const trackKey = (artist + " - " + title).toLowerCase();
-      if (currentTrackKey === trackKey) return;
-
-      currentTrackKey = trackKey;
-      trackStartTime = startTime;
-      activeLineIndex = -1;
-      parsedLyrics = [];
-
-      const lyricsContainer = activeDoc.getElementById("discord-lyrics-container");
-      if (!lyricsContainer) return;
-
-      lyricsContainer.innerHTML = '<div class="lyrics-status">Searching synced lyrics...</div>';
-      const lyrics = await fetchSyncedLyrics(artist, title);
-
-      if (currentTrackKey !== trackKey) return; // Prevent race conditions
-
-      if (lyrics && lyrics.length > 0) {
-        parsedLyrics = lyrics;
-        let html = '<div class="lyrics-wrapper" id="lyrics-wrapper">';
-        for (let i = 0; i < lyrics.length; i++) {
-          html += '<div class="lyric-line" id="lyric-' + i + '">' + lyrics[i].text + '</div>';
-        }
-        html += '</div>';
-        lyricsContainer.innerHTML = html;
-        updateLyricsSync();
-      } else {
-        lyricsContainer.innerHTML = '<div class="lyrics-status">No synced lyrics available</div>';
-      }
-    }
-
     setInterval(function() {
       const now = Date.now();
-      const timeElements = activeDoc.querySelectorAll('.time-text');
-      for (let i = 0; i < timeElements.length; i++) {
-        const el = timeElements[i];
-        const start = parseInt(el.getAttribute('data-start'));
-        const end = parseInt(el.getAttribute('data-end'));
+      const timeEls = activeDoc.querySelectorAll('.time-text');
+      for (let i = 0; i < timeEls.length; i++) {
+        const start = parseInt(timeEls[i].getAttribute('data-start'));
+        const end = parseInt(timeEls[i].getAttribute('data-end'));
         if (start && end) {
-           el.innerText = formatTime(now - start) + " / " + formatTime(end - start);
+           timeEls[i].innerText = formatTime(now - start) + " / " + formatTime(end - start);
         } else if (start) {
-           el.innerText = formatTime(now - start) + " elapsed";
+           timeEls[i].innerText = formatTime(now - start) + " elapsed";
         }
       }
-      updateLyricsSync();
-    }, 100);
+    }, 1000);
 
     // --- PIP WINDOW HANDLER ---
     async function togglePiP() {
@@ -345,6 +214,7 @@
       }
       const cardsWrapper = document.getElementById("cards-wrapper");
       const btn = document.getElementById("pip-toggle-btn");
+      
       if (window.documentPictureInPicture.window) {
         window.documentPictureInPicture.window.close();
         return;
@@ -375,4 +245,110 @@
       }
     }
 
-    // ---
+    function getAssetUrl(appId, assetId) {
+      if (!assetId) return "";
+      if (assetId.indexOf("mp:external/") === 0) return assetId.replace("mp:external/", "https://media.discordapp.net/external/");
+      if (assetId.indexOf("spotify:") === 0) return "https://i.scdn.co/image/" + assetId.split(":")[1];
+      return "https://cdn.discordapp.com/app-assets/" + appId + "/" + assetId + ".png";
+    }
+
+    function renderDiscord(data) {
+      const container = activeDoc.getElementById("discord-container");
+      const ambient = activeDoc.getElementById("discord-ambient");
+      if (!container) return;
+      
+      let dStatus = data.discord_status || "offline";
+      let statusColor = "#747f8d";
+      if (dStatus === "online") statusColor = "#23A55A";
+      else if (dStatus === "idle") statusColor = "#F0B132";
+      else if (dStatus === "dnd") statusColor = "#F23F42";
+      
+      let statusText = dStatus === "offline" ? "OFFLINE" : dStatus.toUpperCase();
+
+      let html = '<div class="activity-item"><div class="card-info"><div class="status-type">CURRENT STATE</div><div class="title" style="color: ' + statusColor + ';">' + statusText + '</div></div></div>';
+
+      let backgroundUrl = "";
+
+      if (data.activities && data.activities.length > 0) {
+        for (let i = 0; i < data.activities.length; i++) {
+          const act = data.activities[i];
+          if (act.type === 4) continue;
+
+          let imgUrl = "";
+          let artistName = "";
+          let songTitle = act.details || "";
+          let stateText = act.state || "";
+          let timeHtml = "";
+          const safeName = act.name || "App";
+
+          if (safeName === "Spotify" && data.spotify) {
+             songTitle = data.spotify.song || "";
+             artistName = data.spotify.artist || "";
+             imgUrl = data.spotify.album_art_url || "";
+             stateText = ""; 
+             if (data.spotify.timestamps) {
+               const start = data.spotify.timestamps.start || 0;
+               const end = data.spotify.timestamps.end || "";
+               timeHtml = '<div class="time-text" data-start="' + start + '" data-end="' + end + '"></div>';
+             }
+          } else {
+             if (act.assets && act.assets.large_image) imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
+             if (act.assets) {
+               if (act.assets.large_text) artistName = act.assets.large_text;
+               else if (act.assets.small_text) artistName = act.assets.small_text;
+             }
+             if (act.timestamps) {
+               const start = act.timestamps.start || 0;
+               const end = act.timestamps.end || "";
+               if (start) timeHtml = '<div class="time-text" data-start="' + start + '" data-end="' + end + '"></div>';
+             }
+          }
+
+          if (imgUrl && !backgroundUrl) backgroundUrl = imgUrl;
+
+          const actionText = act.type === 2 ? 'LISTENING TO' : 'PLAYING';
+
+          html += '<div class="activity-item" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">';
+          html += '<div class="card-info">';
+          html += '<div class="status-type" style="color: #5865F2;">' + actionText + ' ' + safeName.toUpperCase() + '</div>';
+          if (songTitle) html += '<div class="title">' + songTitle + '</div>';
+          if (artistName) html += '<div class="details">by ' + artistName + '</div>';
+          if (stateText) html += '<div class="state">' + stateText + '</div>';
+          html += timeHtml;
+          html += '</div>';
+          if (imgUrl) html += '<img class="card-icon" src="' + imgUrl + '" onerror="this.style.display=\'none\'" />';
+          html += '</div>';
+        }
+      }
+
+      if (ambient) {
+        if (backgroundUrl) ambient.style.backgroundImage = 'url("' + backgroundUrl + '")';
+        else ambient.style.backgroundImage = 'none';
+      }
+      container.innerHTML = html;
+    }
+
+    function fetchDiscord() {
+      fetch("https://api.lanyard.rest/v1/users/" + USER_ID + "?t=" + Date.now())
+        .then(function(res) { return res.json(); })
+        .then(function(json) {
+          if (json.success && json.data) renderDiscord(json.data);
+        })
+        .catch(function(err) {
+          const container = activeDoc.getElementById("discord-container");
+          if (container) {
+            container.innerHTML = '<div class="activity-item"><div class="card-info"><div class="title" style="color: #f23f42;">Failed to load Lanyard</div></div></div>';
+          }
+        });
+    }
+
+    function fetchMedia() {
+      fetch("https://my-rpc.grammar-checker.workers.dev/api/lastfm?t=" + Date.now())
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          const container = activeDoc.getElementById("media-container");
+          const ambient = activeDoc.getElementById("media-ambient");
+          if (!container) return;
+
+          if (!data.is_playing) {
+            container.innerHTML = '<div class="activity-item"><div class="card
