@@ -5,12 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kizzey's Presence</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background-color: #0e0e10;
       color: #ffffff;
@@ -23,7 +18,6 @@
       min-height: 100vh;
       padding: 20px 16px; 
     }
-
     .pip-btn {
       position: fixed;
       bottom: 20px;
@@ -41,11 +35,7 @@
       backdrop-filter: blur(10px);
       transition: background-color 0.2s, transform 0.1s;
     }
-
-    .pip-btn:active {
-      transform: scale(0.96);
-    }
-
+    .pip-btn:active { transform: scale(0.96); }
     .cards-wrapper {
       display: flex;
       flex-direction: column;
@@ -55,7 +45,6 @@
       align-items: center;
       padding: 4px;
     }
-
     .kizzey-card {
       background-color: rgba(17, 18, 20, 0.65);
       border: 1px solid rgba(255, 255, 255, 0.05);
@@ -68,13 +57,9 @@
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
     }
-
     .ambient-bg {
       position: absolute;
-      top: -30px;
-      left: -30px;
-      right: -30px;
-      bottom: -30px;
+      top: -30px; left: -30px; right: -30px; bottom: -30px;
       background-size: cover;
       background-position: center;
       filter: blur(30px) saturate(200%) brightness(0.6);
@@ -83,7 +68,6 @@
       transition: background-image 0.8s ease-in-out;
       pointer-events: none;
     }
-
     .card-content {
       position: relative;
       z-index: 1;
@@ -91,7 +75,6 @@
       flex-direction: column;
       gap: 16px;
     }
-
     .section-header {
       font-size: 0.75rem;
       font-weight: 800;
@@ -102,7 +85,6 @@
       padding-bottom: 6px;
       margin-bottom: -6px;
     }
-
     .activity-item {
       display: flex;
       justify-content: space-between;
@@ -110,7 +92,6 @@
       gap: 12px;
       width: 100%;
     }
-
     .card-info {
       flex: 1;
       min-width: 0;
@@ -118,7 +99,6 @@
       flex-direction: column;
       gap: 3px;
     }
-
     .status-type {
       font-size: 0.68rem;
       font-weight: 700;
@@ -126,7 +106,6 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
-
     .title {
       font-size: 0.95rem;
       font-weight: 700;
@@ -135,7 +114,6 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
     .details, .state {
       font-size: 0.82rem;
       color: #b5bac1;
@@ -143,7 +121,6 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
     .card-icon {
       width: 60px;
       height: 60px;
@@ -152,7 +129,6 @@
       flex-shrink: 0;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-
     .lyrics-container {
       margin-top: 12px;
       border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -163,7 +139,6 @@
       mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
       -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
     }
-
     .lyrics-wrapper {
       transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
       display: flex;
@@ -171,21 +146,18 @@
       gap: 8px;
       padding-top: 35px;
     }
-
     .lyric-line {
       font-size: 0.82rem;
       color: #80848e;
       transition: color 0.2s ease, font-weight 0.2s ease, transform 0.2s ease;
       line-height: 1.35;
     }
-
     .lyric-line.active {
       color: #ffffff;
       font-weight: 700;
       transform: scale(1.03);
       transform-origin: left center;
     }
-
     .lyrics-status {
       font-size: 0.75rem;
       color: #80848e;
@@ -231,40 +203,22 @@
   </div>
 
   <script>
-    // --- GLOBAL CRASH CATCHERS ---
-    window.onerror = function(msg, url, line) {
-      const errHtml = `<div style="color:#f23f42; font-size:0.75rem;">JS Crash: ${msg} (Line ${line})</div>`;
-      const dc = document.getElementById("discord-container");
-      if(dc) dc.innerHTML = errHtml;
-    };
-    window.onunhandledrejection = function(e) {
-      const errHtml = `<div style="color:#f23f42; font-size:0.75rem;">API Crash: ${e.reason}</div>`;
-      const mc = document.getElementById("media-container");
-      if(mc) mc.innerHTML = errHtml;
-    };
+    // Failsafe document reference that cleanly updates only if PiP is actually opened
+    let activeDoc = document;
 
-    // --- SECURE PiP DOC HELPER ---
-    function getDoc() {
-      try {
-        // Safe optional chaining prevents mobile crash if PiP API doesn't exist
-        return window.documentPictureInPicture?.window?.document || document;
-      } catch (e) {
-        return document;
-      }
-    }
-
-    // --- TIME FORMATTING ---
     function formatTime(ms) {
       if (ms < 0) return "0:00";
       const totalSeconds = Math.floor(ms / 1000);
       const h = Math.floor(totalSeconds / 3600);
       const m = Math.floor((totalSeconds % 3600) / 60);
       const s = totalSeconds % 60;
-      if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-      return `${m}:${s.toString().padStart(2, '0')}`;
+      let mStr = m < 10 ? "0" + m : m;
+      let sStr = s < 10 ? "0" + s : s;
+      if (h > 0) return h + ":" + mStr + ":" + sStr;
+      return m + ":" + sStr;
     }
 
-    // --- REAL-TIME LYRICS STATE ---
+    // --- REAL-TIME LYRICS ENGINE ---
     let currentTrackKey = "";
     let parsedLyrics = [];
     let trackStartTime = 0;
@@ -275,53 +229,47 @@
       const lines = lrcText.split('\n');
       const result = [];
       const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
-
-      for (let line of lines) {
-        const match = timeRegex.exec(line);
+      for (let i = 0; i < lines.length; i++) {
+        const match = timeRegex.exec(lines[i]);
         if (match) {
           const minutes = parseInt(match[1], 10);
           const seconds = parseInt(match[2], 10);
-          const msStr = match[3].padEnd(3, '0').slice(0, 3);
-          const totalMs = (minutes * 60 + seconds) * 1000 + parseInt(msStr, 10);
-          const text = line.replace(timeRegex, '').trim();
-          if (text) result.push({ time: totalMs, text });
+          let msStr = match[3];
+          if (msStr.length === 2) msStr += '0';
+          const ms = parseInt(msStr.substring(0, 3), 10);
+          const totalMs = (minutes * 60 + seconds) * 1000 + ms;
+          const text = lines[i].replace(timeRegex, '').trim();
+          if (text) result.push({ time: totalMs, text: text });
         }
       }
-      return result.sort((a, b) => a.time - b.time);
+      return result.sort(function(a, b) { return a.time - b.time; });
     }
 
     async function fetchSyncedLyrics(artist, title) {
       try {
-        const query = `artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`;
-        let res = await fetch(`https://lrclib.net/api/get?${query}`);
+        let res = await fetch("https://lrclib.net/api/get?artist_name=" + encodeURIComponent(artist) + "&track_name=" + encodeURIComponent(title));
         if (res.ok) {
           const data = await res.json();
           if (data.syncedLyrics) return parseLRC(data.syncedLyrics);
         }
-        
-        res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(artist + " " + title)}`);
+        res = await fetch("https://lrclib.net/api/search?q=" + encodeURIComponent(artist + " " + title));
         if (res.ok) {
           const searchData = await res.json();
-          if (searchData.length > 0 && searchData[0].syncedLyrics) {
-            return parseLRC(searchData[0].syncedLyrics);
-          }
+          if (searchData.length > 0 && searchData[0].syncedLyrics) return parseLRC(searchData[0].syncedLyrics);
         }
       } catch (e) {
-        console.error("LRCLIB Error:", e);
+        console.error("Lyrics fetch failed", e);
       }
       return null;
     }
 
     function updateLyricsSync() {
       if (!parsedLyrics || parsedLyrics.length === 0 || !trackStartTime) return;
-
-      const doc = getDoc();
-      const wrapper = doc.getElementById("lyrics-wrapper");
+      const wrapper = activeDoc.getElementById("lyrics-wrapper");
       if (!wrapper) return;
 
       const elapsed = Date.now() - trackStartTime;
       let newActiveIndex = -1;
-
       for (let i = 0; i < parsedLyrics.length; i++) {
         if (elapsed >= parsedLyrics[i].time) newActiveIndex = i;
         else break;
@@ -330,40 +278,20 @@
       if (newActiveIndex !== activeLineIndex) {
         activeLineIndex = newActiveIndex;
         const lineElements = wrapper.querySelectorAll('.lyric-line');
-        
-        lineElements.forEach((el, idx) => {
-          if (idx === activeLineIndex) el.classList.add('active');
-          else el.classList.remove('active');
-        });
-
-        if (activeLineIndex >= 0 && lineElements[activeLineIndex]) {
-          const targetEl = lineElements[activeLineIndex];
-          const offset = targetEl.offsetTop - 35;
-          wrapper.style.transform = `translateY(-${Math.max(0, offset)}px)`;
+        for (let i = 0; i < lineElements.length; i++) {
+          if (i === activeLineIndex) {
+            lineElements[i].classList.add('active');
+            const offset = lineElements[i].offsetTop - 35;
+            wrapper.style.transform = "translateY(-" + Math.max(0, offset) + "px)";
+          } else {
+            lineElements[i].classList.remove('active');
+          }
         }
       }
     }
 
-    setInterval(() => {
-      const doc = getDoc();
-      const now = Date.now();
-      
-      doc.querySelectorAll('.time-text').forEach(el => {
-        const start = parseInt(el.getAttribute('data-start'));
-        const end = parseInt(el.getAttribute('data-end'));
-
-        if (start && end) {
-           el.innerText = `${formatTime(now - start)} / ${formatTime(end - start)}`;
-        } else if (start) {
-           el.innerText = `${formatTime(now - start)} elapsed`;
-        }
-      });
-
-      updateLyricsSync();
-    }, 100);
-
     async function setupLyricsForTrack(artist, title, startTime) {
-      const trackKey = `${artist} - ${title}`.toLowerCase();
+      const trackKey = (artist + " - " + title).toLowerCase();
       if (currentTrackKey === trackKey) return;
 
       currentTrackKey = trackKey;
@@ -371,57 +299,80 @@
       activeLineIndex = -1;
       parsedLyrics = [];
 
-      const doc = getDoc();
-      const lyricsContainer = doc.getElementById("discord-lyrics-container");
+      const lyricsContainer = activeDoc.getElementById("discord-lyrics-container");
       if (!lyricsContainer) return;
 
-      lyricsContainer.innerHTML = `<div class="lyrics-status">Searching synced lyrics...</div>`;
+      lyricsContainer.innerHTML = '<div class="lyrics-status">Searching synced lyrics...</div>';
       const lyrics = await fetchSyncedLyrics(artist, title);
-      if (currentTrackKey !== trackKey) return;
+
+      if (currentTrackKey !== trackKey) return; // Prevent race conditions
 
       if (lyrics && lyrics.length > 0) {
         parsedLyrics = lyrics;
-        let html = `<div class="lyrics-wrapper" id="lyrics-wrapper">`;
-        lyrics.forEach((line, index) => {
-          html += `<div class="lyric-line" id="lyric-${index}">${line.text}</div>`;
-        });
-        html += `</div>`;
+        let html = '<div class="lyrics-wrapper" id="lyrics-wrapper">';
+        for (let i = 0; i < lyrics.length; i++) {
+          html += '<div class="lyric-line" id="lyric-' + i + '">' + lyrics[i].text + '</div>';
+        }
+        html += '</div>';
         lyricsContainer.innerHTML = html;
         updateLyricsSync();
       } else {
-        lyricsContainer.innerHTML = `<div class="lyrics-status">No synced lyrics available</div>`;
+        lyricsContainer.innerHTML = '<div class="lyrics-status">No synced lyrics available</div>';
       }
     }
 
+    setInterval(function() {
+      const now = Date.now();
+      const timeElements = activeDoc.querySelectorAll('.time-text');
+      for (let i = 0; i < timeElements.length; i++) {
+        const el = timeElements[i];
+        const start = parseInt(el.getAttribute('data-start'));
+        const end = parseInt(el.getAttribute('data-end'));
+        if (start && end) {
+           el.innerText = formatTime(now - start) + " / " + formatTime(end - start);
+        } else if (start) {
+           el.innerText = formatTime(now - start) + " elapsed";
+        }
+      }
+      updateLyricsSync();
+    }, 100);
+
+    // --- PIP WINDOW HANDLER ---
     async function togglePiP() {
       if (!('documentPictureInPicture' in window)) {
-        alert("Document Picture-in-Picture is not supported in this browser.");
+        alert("Picture-in-Picture is not supported in this browser.");
         return;
       }
       const cardsWrapper = document.getElementById("cards-wrapper");
       const btn = document.getElementById("pip-toggle-btn");
-      if (documentPictureInPicture.window) {
-        documentPictureInPicture.window.close();
+      if (window.documentPictureInPicture.window) {
+        window.documentPictureInPicture.window.close();
         return;
       }
       try {
-        const pipWindow = await documentPictureInPicture.requestWindow({ width: 380, height: 620 });
-        Array.from(document.styleSheets).forEach((styleSheet) => {
-          try {
-            const cssRules = Array.from(styleSheet.cssRules).map(rule => rule.cssText).join('');
-            const style = pipWindow.document.createElement('style');
-            style.textContent = cssRules;
-            pipWindow.document.head.appendChild(style);
-          } catch (e) {}
-        });
+        const pipWindow = await window.documentPictureInPicture.requestWindow({ width: 380, height: 620 });
+        const styles = document.querySelectorAll('style, link[rel="stylesheet"]');
+        for (let i = 0; i < styles.length; i++) {
+            pipWindow.document.head.appendChild(styles[i].cloneNode(true));
+        }
         pipWindow.document.body.style.backgroundColor = "#0e0e10";
-        pipWindow.document.body.style.margin = "0";
         pipWindow.document.body.style.display = "flex";
         pipWindow.document.body.style.flexDirection = "column";
-        pipWindow.document.body.style.justifyContent = "flex-start";
         pipWindow.document.body.style.alignItems = "center";
         pipWindow.document.body.style.padding = "16px";
-        pipWindow.document.body.style.overflowY = "auto";
         pipWindow.document.body.appendChild(cardsWrapper);
+        
+        activeDoc = pipWindow.document;
         btn.textContent = "Return to Tab";
-        pipWindow.addEventListener("
+
+        pipWindow.addEventListener("pagehide", function() {
+          document.body.appendChild(cardsWrapper);
+          activeDoc = document;
+          btn.textContent = "Pop Out Window";
+        }, { once: true });
+      } catch (err) {
+        console.error("PiP Error:", err);
+      }
+    }
+
+    // ---
