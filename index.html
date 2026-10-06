@@ -153,7 +153,6 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
-    /* --- REAL-TIME LYRICS STYLES --- */
     .lyrics-container {
       margin-top: 12px;
       border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -197,12 +196,10 @@
 </head>
 <body>
 
-  <!-- PiP Toggle Button -->
   <button class="pip-btn" id="pip-toggle-btn" onclick="togglePiP()">Pop Out Window</button>
 
-  <!-- Cards Container -->
   <div class="cards-wrapper" id="cards-wrapper">
-    <!-- CARD 1: Discord Status & RPC -->
+    <!-- CARD 1 -->
     <div class="kizzey-card" id="discord-card">
       <div class="ambient-bg" id="discord-ambient"></div>
       <div class="card-content">
@@ -217,7 +214,7 @@
       </div>
     </div>
 
-    <!-- CARD 2: Media (Last.fm) -->
+    <!-- CARD 2 -->
     <div class="kizzey-card" id="media-card">
       <div class="ambient-bg" id="media-ambient"></div>
       <div class="card-content">
@@ -234,10 +231,26 @@
   </div>
 
   <script>
+    // --- GLOBAL CRASH CATCHERS ---
+    window.onerror = function(msg, url, line) {
+      const errHtml = `<div style="color:#f23f42; font-size:0.75rem;">JS Crash: ${msg} (Line ${line})</div>`;
+      const dc = document.getElementById("discord-container");
+      if(dc) dc.innerHTML = errHtml;
+    };
+    window.onunhandledrejection = function(e) {
+      const errHtml = `<div style="color:#f23f42; font-size:0.75rem;">API Crash: ${e.reason}</div>`;
+      const mc = document.getElementById("media-container");
+      if(mc) mc.innerHTML = errHtml;
+    };
+
+    // --- SECURE PiP DOC HELPER ---
     function getDoc() {
-      return (window.documentPictureInPicture && documentPictureInPicture.window) 
-        ? documentPictureInPicture.window.document 
-        : document;
+      try {
+        // Safe optional chaining prevents mobile crash if PiP API doesn't exist
+        return window.documentPictureInPicture?.window?.document || document;
+      } catch (e) {
+        return document;
+      }
     }
 
     // --- TIME FORMATTING ---
@@ -246,4 +259,169 @@
       const totalSeconds = Math.floor(ms / 1000);
       const h = Math.floor(totalSeconds / 3600);
       const m = Math.floor((totalSeconds % 3600) / 60);
-      const s = total
+      const s = totalSeconds % 60;
+      if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // --- REAL-TIME LYRICS STATE ---
+    let currentTrackKey = "";
+    let parsedLyrics = [];
+    let trackStartTime = 0;
+    let activeLineIndex = -1;
+
+    function parseLRC(lrcText) {
+      if (!lrcText) return [];
+      const lines = lrcText.split('\n');
+      const result = [];
+      const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+
+      for (let line of lines) {
+        const match = timeRegex.exec(line);
+        if (match) {
+          const minutes = parseInt(match[1], 10);
+          const seconds = parseInt(match[2], 10);
+          const msStr = match[3].padEnd(3, '0').slice(0, 3);
+          const totalMs = (minutes * 60 + seconds) * 1000 + parseInt(msStr, 10);
+          const text = line.replace(timeRegex, '').trim();
+          if (text) result.push({ time: totalMs, text });
+        }
+      }
+      return result.sort((a, b) => a.time - b.time);
+    }
+
+    async function fetchSyncedLyrics(artist, title) {
+      try {
+        const query = `artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`;
+        let res = await fetch(`https://lrclib.net/api/get?${query}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.syncedLyrics) return parseLRC(data.syncedLyrics);
+        }
+        
+        res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(artist + " " + title)}`);
+        if (res.ok) {
+          const searchData = await res.json();
+          if (searchData.length > 0 && searchData[0].syncedLyrics) {
+            return parseLRC(searchData[0].syncedLyrics);
+          }
+        }
+      } catch (e) {
+        console.error("LRCLIB Error:", e);
+      }
+      return null;
+    }
+
+    function updateLyricsSync() {
+      if (!parsedLyrics || parsedLyrics.length === 0 || !trackStartTime) return;
+
+      const doc = getDoc();
+      const wrapper = doc.getElementById("lyrics-wrapper");
+      if (!wrapper) return;
+
+      const elapsed = Date.now() - trackStartTime;
+      let newActiveIndex = -1;
+
+      for (let i = 0; i < parsedLyrics.length; i++) {
+        if (elapsed >= parsedLyrics[i].time) newActiveIndex = i;
+        else break;
+      }
+
+      if (newActiveIndex !== activeLineIndex) {
+        activeLineIndex = newActiveIndex;
+        const lineElements = wrapper.querySelectorAll('.lyric-line');
+        
+        lineElements.forEach((el, idx) => {
+          if (idx === activeLineIndex) el.classList.add('active');
+          else el.classList.remove('active');
+        });
+
+        if (activeLineIndex >= 0 && lineElements[activeLineIndex]) {
+          const targetEl = lineElements[activeLineIndex];
+          const offset = targetEl.offsetTop - 35;
+          wrapper.style.transform = `translateY(-${Math.max(0, offset)}px)`;
+        }
+      }
+    }
+
+    setInterval(() => {
+      const doc = getDoc();
+      const now = Date.now();
+      
+      doc.querySelectorAll('.time-text').forEach(el => {
+        const start = parseInt(el.getAttribute('data-start'));
+        const end = parseInt(el.getAttribute('data-end'));
+
+        if (start && end) {
+           el.innerText = `${formatTime(now - start)} / ${formatTime(end - start)}`;
+        } else if (start) {
+           el.innerText = `${formatTime(now - start)} elapsed`;
+        }
+      });
+
+      updateLyricsSync();
+    }, 100);
+
+    async function setupLyricsForTrack(artist, title, startTime) {
+      const trackKey = `${artist} - ${title}`.toLowerCase();
+      if (currentTrackKey === trackKey) return;
+
+      currentTrackKey = trackKey;
+      trackStartTime = startTime;
+      activeLineIndex = -1;
+      parsedLyrics = [];
+
+      const doc = getDoc();
+      const lyricsContainer = doc.getElementById("discord-lyrics-container");
+      if (!lyricsContainer) return;
+
+      lyricsContainer.innerHTML = `<div class="lyrics-status">Searching synced lyrics...</div>`;
+      const lyrics = await fetchSyncedLyrics(artist, title);
+      if (currentTrackKey !== trackKey) return;
+
+      if (lyrics && lyrics.length > 0) {
+        parsedLyrics = lyrics;
+        let html = `<div class="lyrics-wrapper" id="lyrics-wrapper">`;
+        lyrics.forEach((line, index) => {
+          html += `<div class="lyric-line" id="lyric-${index}">${line.text}</div>`;
+        });
+        html += `</div>`;
+        lyricsContainer.innerHTML = html;
+        updateLyricsSync();
+      } else {
+        lyricsContainer.innerHTML = `<div class="lyrics-status">No synced lyrics available</div>`;
+      }
+    }
+
+    async function togglePiP() {
+      if (!('documentPictureInPicture' in window)) {
+        alert("Document Picture-in-Picture is not supported in this browser.");
+        return;
+      }
+      const cardsWrapper = document.getElementById("cards-wrapper");
+      const btn = document.getElementById("pip-toggle-btn");
+      if (documentPictureInPicture.window) {
+        documentPictureInPicture.window.close();
+        return;
+      }
+      try {
+        const pipWindow = await documentPictureInPicture.requestWindow({ width: 380, height: 620 });
+        Array.from(document.styleSheets).forEach((styleSheet) => {
+          try {
+            const cssRules = Array.from(styleSheet.cssRules).map(rule => rule.cssText).join('');
+            const style = pipWindow.document.createElement('style');
+            style.textContent = cssRules;
+            pipWindow.document.head.appendChild(style);
+          } catch (e) {}
+        });
+        pipWindow.document.body.style.backgroundColor = "#0e0e10";
+        pipWindow.document.body.style.margin = "0";
+        pipWindow.document.body.style.display = "flex";
+        pipWindow.document.body.style.flexDirection = "column";
+        pipWindow.document.body.style.justifyContent = "flex-start";
+        pipWindow.document.body.style.alignItems = "center";
+        pipWindow.document.body.style.padding = "16px";
+        pipWindow.document.body.style.overflowY = "auto";
+        pipWindow.document.body.appendChild(cardsWrapper);
+        btn.textContent = "Return to Tab";
+        pipWindow.addEventListener("
