@@ -189,6 +189,13 @@
   </div>
 
   <script>
+    // Helper to always target the correct active document (Main tab or PiP window)
+    function getDoc() {
+      return (window.documentPictureInPicture && documentPictureInPicture.window) 
+        ? documentPictureInPicture.window.document 
+        : document;
+    }
+
     // --- DYNAMIC POP-UP (DOCUMENT PICTURE-IN-PICTURE) LOGIC ---
     async function togglePiP() {
       if (!('documentPictureInPicture' in window)) {
@@ -234,8 +241,10 @@
         pipWindow.addEventListener("pagehide", () => {
           document.body.appendChild(cardsWrapper);
           btn.textContent = "Pop Out Window";
+          updatePiPSize();
         }, { once: true });
 
+        updatePiPSize();
       } catch (err) {
         console.error("PiP Error:", err);
       }
@@ -243,9 +252,12 @@
 
     function updatePiPSize() {
       if (window.documentPictureInPicture && documentPictureInPicture.window) {
-        const cardsWrapper = document.getElementById("cards-wrapper");
-        const newHeight = cardsWrapper.scrollHeight + 40;
-        documentPictureInPicture.window.resizeTo(380, newHeight);
+        const pipWin = documentPictureInPicture.window;
+        const cardsWrapper = pipWin.document.getElementById("cards-wrapper");
+        if (cardsWrapper) {
+          const newHeight = cardsWrapper.scrollHeight + 40;
+          pipWin.resizeTo(380, newHeight);
+        }
       }
     }
 
@@ -282,8 +294,9 @@
 
     function renderDiscord(data) {
       try {
-        const container = document.getElementById("discord-container");
-        const discordAmbient = document.getElementById("discord-ambient");
+        const doc = getDoc();
+        const container = doc.getElementById("discord-container");
+        const discordAmbient = doc.getElementById("discord-ambient");
         
         let dStatus = data.discord_status || "offline";
         let statusColor = "#747f8d";
@@ -334,8 +347,10 @@
                if (!isVideoService && songTitle && !imgUrl) {
                  fetchSongArtworkFromItunes(songTitle, (artwork) => {
                    if (artwork) {
-                     discordAmbient.style.backgroundImage = `url('${artwork}')`;
-                     const imgEl = document.getElementById(`discord-icon-${act.application_id || 'spotify'}`);
+                     const activeDoc = getDoc();
+                     const currentAmbient = activeDoc.getElementById("discord-ambient");
+                     if (currentAmbient) currentAmbient.style.backgroundImage = `url('${artwork}')`;
+                     const imgEl = activeDoc.getElementById(`discord-icon-${act.application_id || 'spotify'}`);
                      if (imgEl) {
                        imgEl.src = artwork;
                        imgEl.style.display = 'block';
@@ -371,7 +386,9 @@
           discordAmbient.style.backgroundImage = 'none';
         }
 
-        container.innerHTML = html;
+        if (container) {
+          container.innerHTML = html;
+        }
         updatePiPSize();
       } catch (err) {
         console.error("Render Discord Error:", err);
@@ -389,7 +406,7 @@
         }
       } catch (err) {
         console.error("Discord Fetch Error:", err);
-        const container = document.getElementById("discord-container");
+        const container = getDoc().getElementById("discord-container");
         if (container) {
           container.innerHTML = `
             <div class="activity-item">
@@ -410,21 +427,24 @@
     const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
 
     async function fetchMedia() {
-      const container = document.getElementById("media-container");
-      const ambient = document.getElementById("media-ambient");
+      const doc = getDoc();
+      const container = doc.getElementById("media-container");
+      const ambient = doc.getElementById("media-ambient");
       try {
         const res = await fetch(`${WORKER_LASTFM_URL}?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) throw new Error("Network response failed");
         const data = await res.json();
 
         if (!data.is_playing) {
-          container.innerHTML = `
-            <div class="activity-item">
-              <div class="card-info">
-                <div class="title" style="color: #80848e; font-style: italic;">Not listening to anything</div>
-              </div>
-            </div>`;
-          ambient.style.backgroundImage = 'none';
+          if (container) {
+            container.innerHTML = `
+              <div class="activity-item">
+                <div class="card-info">
+                  <div class="title" style="color: #80848e; font-style: italic;">Not listening to anything</div>
+                </div>
+              </div>`;
+          }
+          if (ambient) ambient.style.backgroundImage = 'none';
           updatePiPSize();
           return;
         }
@@ -434,36 +454,42 @@
           finalImage = FALLBACK_IMAGE;
           fetchSongArtworkFromItunes(`${data.artist} ${data.song}`, (artwork) => {
             if (artwork) {
-              ambient.style.backgroundImage = `url('${artwork}')`;
-              const imgEl = document.getElementById("media-icon");
+              const activeDoc = getDoc();
+              const currentAmbient = activeDoc.getElementById("media-ambient");
+              if (currentAmbient) currentAmbient.style.backgroundImage = `url('${artwork}')`;
+              const imgEl = activeDoc.getElementById("media-icon");
               if (imgEl) imgEl.src = artwork;
             }
           });
         }
 
-        ambient.style.backgroundImage = `url('${finalImage}')`;
+        if (ambient) ambient.style.backgroundImage = `url('${finalImage}')`;
 
-        container.innerHTML = `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="status-type" style="color: #d51007;">SCROBBLING</div>
-              <div class="title">${data.song}</div>
-              <div class="details">by ${data.artist}</div>
-              <div class="state">${data.album}</div>
-            </div>
-            <img class="card-icon" id="media-icon" src="${finalImage}" />
-          </div>`;
+        if (container) {
+          container.innerHTML = `
+            <div class="activity-item">
+              <div class="card-info">
+                <div class="status-type" style="color: #d51007;">SCROBBLING</div>
+                <div class="title">${data.song}</div>
+                <div class="details">by ${data.artist}</div>
+                <div class="state">${data.album}</div>
+              </div>
+              <img class="card-icon" id="media-icon" src="${finalImage}" />
+            </div>`;
+        }
           
         updatePiPSize();
       } catch (err) {
         console.error("Last.fm Fetch Error:", err);
-        container.innerHTML = `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="title" style="color: #f23f42; font-size: 0.85rem;">Last.fm unavailable</div>
-            </div>
-          </div>`;
-        ambient.style.backgroundImage = 'none';
+        if (container) {
+          container.innerHTML = `
+            <div class="activity-item">
+              <div class="card-info">
+                <div class="title" style="color: #f23f42; font-size: 0.85rem;">Last.fm unavailable</div>
+              </div>
+            </div>`;
+        }
+        if (ambient) ambient.style.backgroundImage = 'none';
         updatePiPSize();
       }
     }
