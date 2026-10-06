@@ -189,6 +189,8 @@
   </div>
 
   <script>
+    let pipResizeObserver = null;
+
     // Helper to always target the correct active document (Main tab or PiP window)
     function getDoc() {
       return (window.documentPictureInPicture && documentPictureInPicture.window) 
@@ -238,26 +240,28 @@
         pipWindow.document.body.appendChild(cardsWrapper);
         btn.textContent = "Return to Tab";
 
+        // Automatically resize the PiP window whenever content height changes
+        if (pipResizeObserver) pipResizeObserver.disconnect();
+        pipResizeObserver = new ResizeObserver(() => {
+          if (window.documentPictureInPicture && documentPictureInPicture.window) {
+            const newHeight = cardsWrapper.scrollHeight + 40;
+            documentPictureInPicture.window.resizeTo(380, newHeight);
+          }
+        });
+        pipResizeObserver.observe(cardsWrapper);
+
         pipWindow.addEventListener("pagehide", () => {
+          if (pipResizeObserver) {
+            pipResizeObserver.disconnect();
+            pipResizeObserver = null;
+          }
           document.body.appendChild(cardsWrapper);
           btn.textContent = "Pop Out Window";
-          updatePiPSize();
         }, { once: true });
 
-        updatePiPSize();
+        pipWindow.resizeTo(380, cardsWrapper.scrollHeight + 40);
       } catch (err) {
         console.error("PiP Error:", err);
-      }
-    }
-
-    function updatePiPSize() {
-      if (window.documentPictureInPicture && documentPictureInPicture.window) {
-        const pipWin = documentPictureInPicture.window;
-        const cardsWrapper = pipWin.document.getElementById("cards-wrapper");
-        if (cardsWrapper) {
-          const newHeight = cardsWrapper.scrollHeight + 40;
-          pipWin.resizeTo(380, newHeight);
-        }
       }
     }
 
@@ -389,7 +393,6 @@
         if (container) {
           container.innerHTML = html;
         }
-        updatePiPSize();
       } catch (err) {
         console.error("Render Discord Error:", err);
       }
@@ -419,7 +422,7 @@
     async function fetchMedia() {
       try {
         const res = await fetch(`${WORKER_LASTFM_URL}?t=${Date.now()}`, { cache: 'no-store' });
-        if (!res.ok) return; // Skip update quietly if rate-limited or temporarily down
+        if (!res.ok) return; 
         const data = await res.json();
 
         const doc = getDoc();
@@ -436,7 +439,6 @@
               </div>`;
           }
           if (ambient) ambient.style.backgroundImage = 'none';
-          updatePiPSize();
           return;
         }
 
@@ -468,15 +470,13 @@
               <img class="card-icon" id="media-icon" src="${finalImage}" />
             </div>`;
         }
-          
-        updatePiPSize();
       } catch (err) {
         console.error("Last.fm Fetch Error:", err);
       }
     }
 
     fetchMedia();
-    setInterval(fetchMedia, 10000); // Polling every 10 seconds to prevent rate-limiting
+    setInterval(fetchMedia, 10000); 
   </script>
 </body>
 </html>
