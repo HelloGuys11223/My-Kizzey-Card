@@ -52,7 +52,23 @@
       gap: 20px;
       width: 100%;
       max-width: 380px;
+      max-height: 85vh;
+      overflow-y: auto;
+      overflow-x: hidden;
       align-items: center;
+      padding-right: 2px;
+    }
+
+    /* Custom Scrollbar for PiP window */
+    .cards-wrapper::-webkit-scrollbar {
+      width: 6px;
+    }
+    .cards-wrapper::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .cards-wrapper::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
     }
 
     .kizzey-card {
@@ -189,8 +205,6 @@
   </div>
 
   <script>
-    let pipResizeObserver = null;
-
     // Helper to always target the correct active document (Main tab or PiP window)
     function getDoc() {
       return (window.documentPictureInPicture && documentPictureInPicture.window) 
@@ -214,10 +228,9 @@
       }
 
       try {
-        const initialHeight = cardsWrapper.scrollHeight + 40;
         const pipWindow = await documentPictureInPicture.requestWindow({
           width: 380,
-          height: initialHeight
+          height: 480
         });
 
         Array.from(document.styleSheets).forEach((styleSheet) => {
@@ -240,26 +253,11 @@
         pipWindow.document.body.appendChild(cardsWrapper);
         btn.textContent = "Return to Tab";
 
-        // Automatically resize the PiP window whenever content height changes
-        if (pipResizeObserver) pipResizeObserver.disconnect();
-        pipResizeObserver = new ResizeObserver(() => {
-          if (window.documentPictureInPicture && documentPictureInPicture.window) {
-            const newHeight = cardsWrapper.scrollHeight + 40;
-            documentPictureInPicture.window.resizeTo(380, newHeight);
-          }
-        });
-        pipResizeObserver.observe(cardsWrapper);
-
         pipWindow.addEventListener("pagehide", () => {
-          if (pipResizeObserver) {
-            pipResizeObserver.disconnect();
-            pipResizeObserver = null;
-          }
           document.body.appendChild(cardsWrapper);
           btn.textContent = "Pop Out Window";
         }, { once: true });
 
-        pipWindow.resizeTo(380, cardsWrapper.scrollHeight + 40);
       } catch (err) {
         console.error("PiP Error:", err);
       }
@@ -445,7 +443,7 @@
         let finalImage = data.image;
         if (!finalImage || finalImage === "") {
           finalImage = FALLBACK_IMAGE;
-          fetchSongArtworkFromItunes(`${data.artist} ${data.song}`, (artwork) => {
+          fetchSongArtworkFromItunes(`${data.artist} `.trim(), (artwork) => {
             if (artwork) {
               const activeDoc = getDoc();
               const currentAmbient = activeDoc.getElementById("media-ambient");
