@@ -406,16 +406,6 @@
         }
       } catch (err) {
         console.error("Discord Fetch Error:", err);
-        const container = getDoc().getElementById("discord-container");
-        if (container) {
-          container.innerHTML = `
-            <div class="activity-item">
-              <div class="card-info">
-                <div class="title" style="color: #f23f42; font-size: 0.85rem;">Discord offline or blocked</div>
-              </div>
-            </div>`;
-          updatePiPSize();
-        }
       }
     }
 
@@ -427,13 +417,14 @@
     const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
 
     async function fetchMedia() {
-      const doc = getDoc();
-      const container = doc.getElementById("media-container");
-      const ambient = doc.getElementById("media-ambient");
       try {
         const res = await fetch(`${WORKER_LASTFM_URL}?t=${Date.now()}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error("Network response failed");
+        if (!res.ok) return; // Skip update quietly if rate-limited or temporarily down
         const data = await res.json();
+
+        const doc = getDoc();
+        const container = doc.getElementById("media-container");
+        const ambient = doc.getElementById("media-ambient");
 
         if (!data.is_playing) {
           if (container) {
@@ -481,21 +472,11 @@
         updatePiPSize();
       } catch (err) {
         console.error("Last.fm Fetch Error:", err);
-        if (container) {
-          container.innerHTML = `
-            <div class="activity-item">
-              <div class="card-info">
-                <div class="title" style="color: #f23f42; font-size: 0.85rem;">Last.fm unavailable</div>
-              </div>
-            </div>`;
-        }
-        if (ambient) ambient.style.backgroundImage = 'none';
-        updatePiPSize();
       }
     }
 
     fetchMedia();
-    setInterval(fetchMedia, 5000); 
+    setInterval(fetchMedia, 10000); // Polling every 10 seconds to prevent rate-limiting
   </script>
 </body>
 </html>
