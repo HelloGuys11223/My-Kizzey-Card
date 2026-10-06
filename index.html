@@ -130,7 +130,7 @@
       <div id="discord-container">
         <div class="activity-item">
           <div class="card-info">
-            <div class="title">Loading Status...</div>
+            <div class="title" style="color: #80848e; font-style: italic;">Connecting to Discord...</div>
           </div>
         </div>
       </div>
@@ -160,7 +160,7 @@
     let heartbeatInterval = null;
 
     function getAssetUrl(appId, assetId) {
-      if (!assetId) return "";
+      if (!assetId || typeof assetId !== 'string') return "";
       if (assetId.startsWith("mp:external/")) {
         return assetId.replace("mp:external/", "https://media.discordapp.net/external/");
       }
@@ -171,44 +171,145 @@
     }
 
     function renderDiscord(data) {
-      const container = document.getElementById("discord-container");
-      const discordAmbient = document.getElementById("discord-ambient");
-      
-      let dStatus = data.discord_status || "offline";
-      let statusColor = "#747f8d";
-      if (dStatus === "online") statusColor = "#23A55A";
-      else if (dStatus === "idle") statusColor = "#F0B132";
-      else if (dStatus === "dnd") statusColor = "#F23F42";
-      let statusText = dStatus === "offline" ? "OFFLINE / INVISIBLE" : dStatus.toUpperCase();
+      try {
+        const container = document.getElementById("discord-container");
+        const discordAmbient = document.getElementById("discord-ambient");
+        
+        let dStatus = data.discord_status || "offline";
+        let statusColor = "#747f8d";
+        if (dStatus === "online") statusColor = "#23A55A";
+        else if (dStatus === "idle") statusColor = "#F0B132";
+        else if (dStatus === "dnd") statusColor = "#F23F42";
+        let statusText = dStatus === "offline" ? "OFFLINE / INVISIBLE" : dStatus.toUpperCase();
 
-      let html = `
-        <div class="activity-item">
-          <div class="card-info">
-            <div class="status-type">CURRENT STATE</div>
-            <div class="title" style="color: ${statusColor};">${statusText}</div>
-          </div>
-        </div>`;
+        let html = `
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="status-type">CURRENT STATE</div>
+              <div class="title" style="color: ${statusColor};">${statusText}</div>
+            </div>
+          </div>`;
 
-      let rpcImageUrl = "";
+        let rpcImageUrl = "";
 
-      // Renders active Rich Presence items (SpotiDuck, games, etc.)
-      if (data.activities && data.activities.length > 0) {
-        data.activities.forEach(act => {
-          if (act.type === 4) return; // Skip custom status text
+        if (data.activities && data.activities.length > 0) {
+          data.activities.forEach(act => {
+            if (act.type === 4) return; // Skip custom status text
 
-          let imgUrl = "";
-          if (act.name === "Spotify" && data.spotify) {
-             imgUrl = data.spotify.album_art_url;
-          } else if (act.assets && act.assets.large_image) {
-             imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
+            let imgUrl = "";
+            if (act.name === "Spotify" && data.spotify) {
+               imgUrl = data.spotify.album_art_url;
+            } else if (act.assets && act.assets.large_image) {
+               imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
+            }
+
+            if (imgUrl && !rpcImageUrl) {
+              rpcImageUrl = imgUrl;
+            }
+
+            const actionText = act.type === 2 ? 'LISTENING TO' : 'PLAYING';
+
+            html += `
+            <div class="activity-item" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+              <div class="card-info">
+                <div class="status-type" style="color: #5865F2;">${actionText} ${act.name ? act.name.toUpperCase() : 'APP'}</div>
+                ${act.details ? `<div class="title">${act.details}</div>` : ''}
+                ${act.state ? `<div class="details">${act.state}</div>` : ''}
+              </div>
+              ${imgUrl ? `<img class="card-icon" src="${imgUrl}" onerror="this.style.display='none'" />` : ''}
+            </div>`;
+          });
+        }
+
+        if (rpcImageUrl) {
+          discordAmbient.style.backgroundImage = `url('${rpcImageUrl}')`;
+        } else {
+          discordAmbient.style.backgroundImage = 'none';
+        }
+
+        container.innerHTML = html;
+      } catch (err) {
+        console.error("Render Discord Error:", err);
+      }
+    }
+
+    function connectWebSocket() {
+      ws = new WebSocket(WS_URL);
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.op === 1) {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            heartbeatInterval = setInterval(() => {
+              if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 3 }));
+            }, message.d.heartbeat_interval);
+            ws.send(JSON.stringify({ op: 2, d: { subscribe_to_id: USER_ID } }));
           }
-
-          // Capture the first valid artwork found for the ambient background glow
-          if (imgUrl && !rpcImageUrl) {
-            rpcImageUrl = imgUrl;
+          if (message.op === 0 && message.d) {
+            renderDiscord(message.d);
           }
+        } catch (e) {
+          console.error("WS Message Error:", e);
+        }
+      };
+      ws.onerror = (err) => {
+        console.error("WebSocket Error:", err);
+      };
+      ws.onclose = () => {
+        setTimeout(connectWebSocket, 3000);
+      };
+    }
+    connectWebSocket();
 
-          const actionText = act.type === 2 ? 'LISTENING TO' : 'PLAYING';
+    // --- LAST.FM API LOGIC ---
+    const WORKER_LASTFM_URL = "https://my-rpc.grammar-checker.workers.dev/api/lastfm";
+    const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
 
-          html += `
-          <div class="activity-item" style="margin-top: 16px; border-top: 1px solid rgba(255,255,2
+    async function fetchMedia() {
+      try {
+        const res = await fetch(WORKER_LASTFM_URL);
+        const data = await res.json();
+        const container = document.getElementById("media-container");
+        const ambient = document.getElementById("media-ambient");
+
+        if (!data.is_playing) {
+          container.innerHTML = `
+            <div class="activity-item">
+              <div class="card-info">
+                <div class="title" style="color: #80848e; font-style: italic;">Not listening to anything</div>
+              </div>
+            </div>`;
+          ambient.style.backgroundImage = 'none';
+          return;
+        }
+
+        const finalImage = data.image ? data.image : FALLBACK_IMAGE;
+        ambient.style.backgroundImage = `url('${finalImage}')`;
+
+        container.innerHTML = `
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="status-type" style="color: #d51007;">SCROBBLING</div>
+              <div class="title">${data.song}</div>
+              <div class="details">by ${data.artist}</div>
+              <div class="state">${data.album}</div>
+            </div>
+            <img class="card-icon" src="${finalImage}" />
+          </div>`;
+      } catch (err) {
+        console.error("Last.fm Fetch Error:", err);
+        const container = document.getElementById("media-container");
+        container.innerHTML = `
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="title" style="color: #80848e; font-style: italic;">Unable to load media</div>
+            </div>
+          </div>`;
+      }
+    }
+
+    fetchMedia();
+    setInterval(fetchMedia, 5000); 
+  </script>
+</body>
+</html>
