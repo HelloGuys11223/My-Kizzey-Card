@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nooble's Presence</title>
+  <title>Kizzey's Presence</title>
   <style>
     * {
       box-sizing: border-box;
@@ -153,22 +153,22 @@
   </div>
 
   <script>
-    // --- SHARED ITUNES ALBUM ARTWORK HELPER ---
-    async function fetchAlbumArtFromItunes(searchTerm) {
+    // --- SHARED ITUNES API HELPER (Artwork & Artist Name) ---
+    async function fetchSongInfoFromItunes(searchTerm) {
       try {
         const query = encodeURIComponent(searchTerm);
         const res = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
         const data = await res.json();
         if (data.results && data.results.length > 0) {
-          let artwork = data.results[0].artworkUrl100;
-          if (artwork) {
-            return artwork.replace('100x100bb', '600x600bb');
-          }
+          const result = data.results[0];
+          let artwork = result.artworkUrl100 ? result.artworkUrl100.replace('100x100bb', '600x600bb') : null;
+          let artistName = result.artistName || null;
+          return { artwork, artistName };
         }
       } catch (e) {
         console.error("iTunes Fetch Error:", e);
       }
-      return null;
+      return { artwork: null, artistName: null };
     }
 
     // --- DISCORD (LANYARD) LOGIC ---
@@ -209,7 +209,6 @@
           </div>`;
 
         let rpcImageUrl = "";
-        // Video services to exclude from iTunes music fallback lookup
         const ignoredVideoApps = ["YouTube", "Twitch", "Netflix", "Plex", "Crunchyroll", "VLC", "Disney+"];
 
         if (data.activities && data.activities.length > 0) {
@@ -217,21 +216,30 @@
             if (act.type === 4) continue; // Skip custom status text
 
             let imgUrl = "";
+            let artistName = "";
+            let songTitle = act.details || "";
+            let lyrics = act.state || ""; // State holds lyrics in SpotiDuck
+
             if (act.name === "Spotify" && data.spotify) {
+               songTitle = data.spotify.song;
+               artistName = data.spotify.artist;
                imgUrl = data.spotify.album_art_url;
-            } else if (act.assets && act.assets.large_image) {
-               imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
-            }
+               lyrics = ""; 
+            } else {
+               const isVideoService = ignoredVideoApps.some(app => 
+                 act.name.toLowerCase().includes(app.toLowerCase())
+               );
 
-            // Check if app is a video service
-            const isVideoService = ignoredVideoApps.some(app => 
-              act.name.toLowerCase().includes(app.toLowerCase())
-            );
+               if (act.assets && act.assets.large_image) {
+                  imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
+               }
 
-            // If no image provided by Discord RPC and it's NOT a video service, fetch from iTunes using song details
-            if (!imgUrl && !isVideoService && act.details) {
-              const query = act.state ? `${act.details} ${act.state}` : act.details;
-              imgUrl = await fetchAlbumArtFromItunes(query);
+               // If it's a music app, fetch missing artwork and artist name from iTunes using the song title
+               if (!isVideoService && songTitle) {
+                 const info = await fetchSongInfoFromItunes(songTitle);
+                 if (!imgUrl && info.artwork) imgUrl = info.artwork;
+                 if (info.artistName) artistName = info.artistName;
+               }
             }
 
             if (imgUrl && !rpcImageUrl) {
@@ -244,8 +252,9 @@
             <div class="activity-item" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
               <div class="card-info">
                 <div class="status-type" style="color: #5865F2;">${actionText} ${act.name ? act.name.toUpperCase() : 'APP'}</div>
-                ${act.details ? `<div class="title">${act.details}</div>` : ''}
-                ${act.state ? `<div class="details">${act.state}</div>` : ''}
+                ${songTitle ? `<div class="title">${songTitle}</div>` : ''}
+                ${artistName ? `<div class="details">by ${artistName}</div>` : ''}
+                ${lyrics ? `<div class="state">${lyrics}</div>` : ''}
               </div>
               ${imgUrl ? `<img class="card-icon" src="${imgUrl}" onerror="this.style.display='none'" />` : ''}
             </div>`;
@@ -294,53 +303,4 @@
 
     // --- LAST.FM API LOGIC ---
     const WORKER_LASTFM_URL = "https://my-rpc.grammar-checker.workers.dev/api/lastfm";
-    const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
-
-    async function fetchMedia() {
-      try {
-        const res = await fetch(WORKER_LASTFM_URL);
-        const data = await res.json();
-        const container = document.getElementById("media-container");
-        const ambient = document.getElementById("media-ambient");
-
-        if (!data.is_playing) {
-          container.innerHTML = `
-            <div class="activity-item">
-              <div class="card-info">
-                <div class="title" style="color: #80848e; font-style: italic;">Not listening to anything</div>
-              </div>
-            </div>`;
-          ambient.style.backgroundImage = 'none';
-          return;
-        }
-
-        let finalImage = data.image;
-        if (!finalImage || finalImage === "") {
-          finalImage = await fetchAlbumArtFromItunes(`${data.artist} ${data.song}`);
-        }
-        if (!finalImage) {
-          finalImage = FALLBACK_IMAGE;
-        }
-
-        ambient.style.backgroundImage = `url('${finalImage}')`;
-
-        container.innerHTML = `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="status-type" style="color: #d51007;">SCROBBLING</div>
-              <div class="title">${data.song}</div>
-              <div class="details">by ${data.artist}</div>
-              <div class="state">${data.album}</div>
-            </div>
-            <img class="card-icon" src="${finalImage}" />
-          </div>`;
-      } catch (err) {
-        console.error("Last.fm Fetch Error:", err);
-      }
-    }
-
-    fetchMedia();
-    setInterval(fetchMedia, 5000); 
-  </script>
-</body>
-</html>
+    const FALLBACK_IMAGE = "
