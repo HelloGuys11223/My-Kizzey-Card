@@ -24,13 +24,38 @@
       padding: 20px 16px; 
     }
 
+    .pip-btn {
+      background-color: #5865F2;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .pip-btn:active {
+      transform: scale(0.96);
+    }
+
+    .cards-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      max-width: 380px;
+      align-items: center;
+    }
+
     .kizzey-card {
       background-color: rgba(17, 18, 20, 0.65);
       border: 1px solid rgba(255, 255, 255, 0.05);
       border-radius: 16px;
       padding: 20px;
       width: 100%;
-      max-width: 380px;
       position: relative;
       overflow: hidden;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -122,30 +147,36 @@
 </head>
 <body>
 
-  <!-- CARD 1: Discord Status & RPC -->
-  <div class="kizzey-card" id="discord-card">
-    <div class="ambient-bg" id="discord-ambient"></div>
-    <div class="card-content">
-      <div class="section-header">Discord Status</div>
-      <div id="discord-container">
-        <div class="activity-item">
-          <div class="card-info">
-            <div class="title" style="color: #80848e; font-style: italic;">Connecting to Discord...</div>
+  <!-- PiP Toggle Button -->
+  <button class="pip-btn" id="pip-toggle-btn" onclick="togglePiP()">Pop Out Floating Window</button>
+
+  <!-- Cards Container that moves seamlessly into the PiP window -->
+  <div class="cards-wrapper" id="cards-wrapper">
+    <!-- CARD 1: Discord Status & RPC -->
+    <div class="kizzey-card" id="discord-card">
+      <div class="ambient-bg" id="discord-ambient"></div>
+      <div class="card-content">
+        <div class="section-header">Discord Status</div>
+        <div id="discord-container">
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="title" style="color: #80848e; font-style: italic;">Connecting to Discord...</div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- CARD 2: Media (Last.fm) -->
-  <div class="kizzey-card" id="media-card">
-    <div class="ambient-bg" id="media-ambient"></div>
-    <div class="card-content">
-      <div class="section-header" style="color: #d51007;">Now Playing (Last.fm)</div>
-      <div id="media-container">
-        <div class="activity-item">
-          <div class="card-info">
-            <div class="title" style="color: #80848e; font-style: italic;">Loading media...</div>
+    <!-- CARD 2: Media (Last.fm) -->
+    <div class="kizzey-card" id="media-card">
+      <div class="ambient-bg" id="media-ambient"></div>
+      <div class="card-content">
+        <div class="section-header" style="color: #d51007;">Now Playing (Last.fm)</div>
+        <div id="media-container">
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="title" style="color: #80848e; font-style: italic;">Loading media...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -153,239 +184,47 @@
   </div>
 
   <script>
-    // --- NON-BLOCKING ITUNES API HELPER (Artwork Fallback Only) ---
-    async function fetchSongArtworkFromItunes(searchTerm, callback) {
+    // --- DYNAMIC POP-UP (DOCUMENT PICTURE-IN-PICTURE) LOGIC ---
+    async function togglePiP() {
+      if (!('documentPictureInPicture' in window)) {
+        alert("Document Picture-in-Picture is not supported in this browser.");
+        return;
+      }
+
+      const cardsWrapper = document.getElementById("cards-wrapper");
+      const btn = document.getElementById("pip-toggle-btn");
+
+      if (documentPictureInPicture.window) {
+        documentPictureInPicture.window.close();
+        return;
+      }
+
       try {
-        const query = encodeURIComponent(searchTerm);
-        const res = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
-        const data = await res.json();
-        if (data.results && data.results.length > 0) {
-          const result = data.results[0];
-          let artwork = result.artworkUrl100 ? result.artworkUrl100.replace('100x100bb', '600x600bb') : null;
-          callback(artwork);
-        }
-      } catch (e) {
-        console.error("iTunes Fetch Error:", e);
-      }
-    }
+        const initialHeight = cardsWrapper.scrollHeight + 40;
+        const pipWindow = await documentPictureInPicture.requestWindow({
+          width: 380,
+          height: initialHeight
+        });
 
-    // --- DISCORD (LANYARD) LOGIC ---
-    const USER_ID = "1167583899409465377";
-    const WS_URL = "wss://api.lanyard.rest/socket";
-    let ws = null;
-    let heartbeatInterval = null;
+        // Copy all CSS rules into the floating window
+        Array.from(document.styleSheets).forEach((styleSheet) => {
+          try {
+            const cssRules = Array.from(styleSheet.cssRules).map(rule => rule.cssText).join('');
+            const style = pipWindow.document.createElement('style');
+            style.textContent = cssRules;
+            pipWindow.document.head.appendChild(style);
+          } catch (e) {}
+        });
 
-    function getAssetUrl(appId, assetId) {
-      if (!assetId || typeof assetId !== 'string') return "";
-      if (assetId.startsWith("mp:external/")) {
-        return assetId.replace("mp:external/", "https://media.discordapp.net/external/");
-      }
-      if (assetId.startsWith("spotify:")) {
-        return `https://i.scdn.co/image/${assetId.split(":")[1]}`;
-      }
-      return `https://cdn.discordapp.com/app-assets/${appId}/${assetId}.png`;
-    }
+        pipWindow.document.body.style.backgroundColor = "#0e0e10";
+        pipWindow.document.body.style.margin = "0";
+        pipWindow.document.body.style.display = "flex";
+        pipWindow.document.body.style.flexDirection = "column";
+        pipWindow.document.body.style.justifyContent = "center";
+        pipWindow.document.body.style.alignItems = "center";
+        pipWindow.document.body.style.padding = "16px";
 
-    function renderDiscord(data) {
-      try {
-        const container = document.getElementById("discord-container");
-        const discordAmbient = document.getElementById("discord-ambient");
-        
-        let dStatus = data.discord_status || "offline";
-        let statusColor = "#747f8d";
-        if (dStatus === "online") statusColor = "#23A55A";
-        else if (dStatus === "idle") statusColor = "#F0B132";
-        else if (dStatus === "dnd") statusColor = "#F23F42";
-        let statusText = dStatus === "offline" ? "OFFLINE / INVISIBLE" : dStatus.toUpperCase();
+        pipWindow.document.body.appendChild(cardsWrapper);
+        btn.textContent = "Return to Tab";
 
-        let html = `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="status-type">CURRENT STATE</div>
-              <div class="title" style="color: ${statusColor};">${statusText}</div>
-            </div>
-          </div>`;
-
-        let rpcImageUrl = "";
-        const ignoredVideoApps = ["YouTube", "Twitch", "Netflix", "Plex", "Crunchyroll", "VLC", "Disney+"];
-
-        if (data.activities && data.activities.length > 0) {
-          for (const act of data.activities) {
-            if (act.type === 4) continue; // Skip custom status text
-
-            let imgUrl = "";
-            let artistName = "";
-            let songTitle = act.details || "";
-            let lyrics = act.state || ""; // State holds lyrics in SpotiDuck
-
-            if (act.name === "Spotify" && data.spotify) {
-               songTitle = data.spotify.song;
-               artistName = data.spotify.artist;
-               imgUrl = data.spotify.album_art_url;
-               lyrics = ""; 
-            } else {
-               const isVideoService = ignoredVideoApps.some(app => 
-                 act.name.toLowerCase().includes(app.toLowerCase())
-               );
-
-               if (act.assets && act.assets.large_image) {
-                  imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
-               }
-
-               // Pull artist name directly from Discord activity assets
-               if (act.assets) {
-                 if (act.assets.large_text) artistName = act.assets.large_text;
-                 else if (act.assets.small_text) artistName = act.assets.small_text;
-               }
-
-               // Fallback artwork fetch from iTunes if missing
-               if (!isVideoService && songTitle && !imgUrl) {
-                 fetchSongArtworkFromItunes(songTitle, (artwork) => {
-                   if (artwork) {
-                     discordAmbient.style.backgroundImage = `url('${artwork}')`;
-                     const imgEl = document.getElementById(`discord-icon-${act.application_id || 'spotify'}`);
-                     if (imgEl) {
-                       imgEl.src = artwork;
-                       imgEl.style.display = 'block';
-                     }
-                   }
-                 });
-               }
-            }
-
-            if (imgUrl && !rpcImageUrl) {
-              rpcImageUrl = imgUrl;
-            }
-
-            const actionText = act.type === 2 ? 'LISTENING TO' : 'PLAYING';
-            const uniqueId = act.application_id || 'spotify';
-
-            html += `
-            <div class="activity-item" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
-              <div class="card-info">
-                <div class="status-type" style="color: #5865F2;">${actionText} ${act.name ? act.name.toUpperCase() : 'APP'}</div>
-                ${songTitle ? `<div class="title">${songTitle}</div>` : ''}
-                <div class="details" id="discord-artist-${uniqueId}" style="${artistName ? '' : 'display:none;'}">by ${artistName}</div>
-                ${lyrics ? `<div class="state">${lyrics}</div>` : ''}
-              </div>
-              <img class="card-icon" id="discord-icon-${uniqueId}" src="${imgUrl}" style="${imgUrl ? '' : 'display:none;'}" onerror="this.style.display='none'" />
-            </div>`;
-          }
-        }
-
-        if (rpcImageUrl) {
-          discordAmbient.style.backgroundImage = `url('${rpcImageUrl}')`;
-        } else {
-          discordAmbient.style.backgroundImage = 'none';
-        }
-
-        container.innerHTML = html;
-      } catch (err) {
-        console.error("Render Discord Error:", err);
-      }
-    }
-
-    function connectWebSocket() {
-      if (ws) {
-        ws.onclose = null;
-        ws.close();
-      }
-
-      ws = new WebSocket(WS_URL);
-      
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          if (message.op === 1) {
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
-            heartbeatInterval = setInterval(() => {
-              if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 3 }));
-            }, message.d.heartbeat_interval);
-            ws.send(JSON.stringify({ op: 2, d: { subscribe_to_id: USER_ID } }));
-          }
-          if (message.op === 0 && message.d) {
-            renderDiscord(message.d);
-          }
-        } catch (e) {
-          console.error("WS Message Error:", e);
-        }
-      };
-
-      ws.onerror = (err) => {
-        console.error("WebSocket Error:", err);
-      };
-
-      ws.onclose = () => {
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
-        setTimeout(connectWebSocket, 3000);
-      };
-    }
-
-    // Automatically reconnect when returning to the tab from another app
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        if (!ws || ws.readyState !== WebSocket.OPEN) {
-          connectWebSocket();
-        }
-      }
-    });
-
-    connectWebSocket();
-
-    // --- LAST.FM API LOGIC ---
-    const WORKER_LASTFM_URL = "https://my-rpc.grammar-checker.workers.dev/api/lastfm";
-    const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
-
-    async function fetchMedia() {
-      const container = document.getElementById("media-container");
-      const ambient = document.getElementById("media-ambient");
-      try {
-        const res = await fetch(WORKER_LASTFM_URL);
-        if (!res.ok) throw new Error("Network response failed");
-        const data = await res.json();
-
-        if (!data.is_playing) {
-          container.innerHTML = `
-            <div class="activity-item">
-              <div class="card-info">
-                <div class="title" style="color: #80848e; font-style: italic;">Not listening to anything</div>
-              </div>
-            </div>`;
-          ambient.style.backgroundImage = 'none';
-          return;
-        }
-
-        let finalImage = data.image;
-        if (!finalImage || finalImage === "") {
-          finalImage = FALLBACK_IMAGE;
-          fetchSongArtworkFromItunes(`${data.artist} ${data.song}`, (artwork) => {
-            if (artwork) {
-              ambient.style.backgroundImage = `url('${artwork}')`;
-              const imgEl = document.getElementById("media-icon");
-              if (imgEl) imgEl.src = artwork;
-            }
-          });
-        }
-
-        ambient.style.backgroundImage = `url('${finalImage}')`;
-
-        container.innerHTML = `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="status-type" style="color: #d51007;">SCROBBLING</div>
-              <div class="title">${data.song}</div>
-              <div class="details">by ${data.artist}</div>
-              <div class="state">${data.album}</div>
-            </div>
-            <img class="card-icon" id="media-icon" src="${finalImage}" />
-          </div>`;
-      } catch (err) {
-        console.error("Last.fm Fetch Error:", err);
-      }
-    }
-
-    fetchMedia();
-    setInterval(fetchMedia, 5000); 
-  </script>
-</body>
-</html>
+        // Listen when the PiP window is
