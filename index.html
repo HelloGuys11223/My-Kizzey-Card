@@ -5,7 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kizzey's Presence</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       background-color: #0e0e10;
       color: #ffffff;
@@ -18,6 +23,7 @@
       min-height: 100vh;
       padding: 20px 16px; 
     }
+
     .pip-btn {
       position: fixed;
       bottom: 20px;
@@ -35,7 +41,11 @@
       backdrop-filter: blur(10px);
       transition: background-color 0.2s, transform 0.1s;
     }
-    .pip-btn:active { transform: scale(0.96); }
+
+    .pip-btn:active {
+      transform: scale(0.96);
+    }
+
     .cards-wrapper {
       display: flex;
       flex-direction: column;
@@ -45,6 +55,7 @@
       align-items: center;
       padding: 4px;
     }
+
     .kizzey-card {
       background-color: rgba(17, 18, 20, 0.65);
       border: 1px solid rgba(255, 255, 255, 0.05);
@@ -57,9 +68,13 @@
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
     }
+
     .ambient-bg {
       position: absolute;
-      top: -30px; left: -30px; right: -30px; bottom: -30px;
+      top: -30px;
+      left: -30px;
+      right: -30px;
+      bottom: -30px;
       background-size: cover;
       background-position: center;
       filter: blur(30px) saturate(200%) brightness(0.6);
@@ -68,6 +83,7 @@
       transition: background-image 0.8s ease-in-out;
       pointer-events: none;
     }
+
     .card-content {
       position: relative;
       z-index: 1;
@@ -75,6 +91,7 @@
       flex-direction: column;
       gap: 16px;
     }
+
     .section-header {
       font-size: 0.75rem;
       font-weight: 800;
@@ -85,14 +102,15 @@
       padding-bottom: 6px;
       margin-bottom: -6px;
     }
+
     .activity-item {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       gap: 12px;
       width: 100%;
-      margin-top: 10px;
     }
+
     .card-info {
       flex: 1;
       min-width: 0;
@@ -100,6 +118,7 @@
       flex-direction: column;
       gap: 3px;
     }
+
     .status-type {
       font-size: 0.68rem;
       font-weight: 700;
@@ -107,6 +126,7 @@
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
+
     .title {
       font-size: 0.95rem;
       font-weight: 700;
@@ -115,6 +135,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     .details, .state {
       font-size: 0.82rem;
       color: #b5bac1;
@@ -122,6 +143,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     .card-icon {
       width: 60px;
       height: 60px;
@@ -130,20 +152,16 @@
       flex-shrink: 0;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .time-text {
-      font-size: 0.75rem; 
-      color: #b5bac1; 
-      margin-top: 4px; 
-      font-variant-numeric: tabular-nums;
-    }
   </style>
 </head>
 <body>
 
+  <!-- PiP Toggle Button fixed in Bottom Right -->
   <button class="pip-btn" id="pip-toggle-btn" onclick="togglePiP()">Pop Out Window</button>
 
+  <!-- Cards Container -->
   <div class="cards-wrapper" id="cards-wrapper">
-    <!-- DISCORD CARD -->
+    <!-- CARD 1: Discord Status & RPC -->
     <div class="kizzey-card" id="discord-card">
       <div class="ambient-bg" id="discord-ambient"></div>
       <div class="card-content">
@@ -158,7 +176,7 @@
       </div>
     </div>
 
-    <!-- LAST.FM CARD -->
+    <!-- CARD 2: Media (Last.fm) -->
     <div class="kizzey-card" id="media-card">
       <div class="ambient-bg" id="media-ambient"></div>
       <div class="card-content">
@@ -175,180 +193,319 @@
   </div>
 
   <script>
-    // Active document switcher for PiP support
-    let activeDoc = document;
+    // Helper to always target the correct active document (Main tab or PiP window)
+    function getDoc() {
+      return (window.documentPictureInPicture && documentPictureInPicture.window) 
+        ? documentPictureInPicture.window.document 
+        : document;
+    }
 
-    const USER_ID = "1167583899409465377";
-    
+    // --- TIME FORMATTING HELPER ---
     function formatTime(ms) {
       if (ms < 0) return "0:00";
       const totalSeconds = Math.floor(ms / 1000);
       const h = Math.floor(totalSeconds / 3600);
       const m = Math.floor((totalSeconds % 3600) / 60);
       const s = totalSeconds % 60;
-      let mStr = m < 10 ? "0" + m : m;
-      let sStr = s < 10 ? "0" + s : s;
-      if (h > 0) return h + ":" + mStr + ":" + sStr;
-      return m + ":" + sStr;
+      if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
-    setInterval(function() {
+    // --- LIVE TIMER UPDATER (Ticks every second) ---
+    setInterval(() => {
+      const doc = getDoc();
       const now = Date.now();
-      const timeEls = activeDoc.querySelectorAll('.time-text');
-      for (let i = 0; i < timeEls.length; i++) {
-        const start = parseInt(timeEls[i].getAttribute('data-start'));
-        const end = parseInt(timeEls[i].getAttribute('data-end'));
+      doc.querySelectorAll('.time-text').forEach(el => {
+        const start = parseInt(el.getAttribute('data-start'));
+        const end = parseInt(el.getAttribute('data-end'));
+
         if (start && end) {
-           timeEls[i].innerText = formatTime(now - start) + " / " + formatTime(end - start);
+           el.innerText = `${formatTime(now - start)} / ${formatTime(end - start)}`;
         } else if (start) {
-           timeEls[i].innerText = formatTime(now - start) + " elapsed";
+           el.innerText = `${formatTime(now - start)} elapsed`;
         }
-      }
+      });
     }, 1000);
 
-    // --- PIP WINDOW HANDLER ---
+    // --- DYNAMIC POP-UP (DOCUMENT PICTURE-IN-PICTURE) LOGIC ---
     async function togglePiP() {
       if (!('documentPictureInPicture' in window)) {
-        alert("Picture-in-Picture is not supported in this browser.");
+        alert("Document Picture-in-Picture is not supported in this browser.");
         return;
       }
+
       const cardsWrapper = document.getElementById("cards-wrapper");
       const btn = document.getElementById("pip-toggle-btn");
-      
-      if (window.documentPictureInPicture.window) {
-        window.documentPictureInPicture.window.close();
+
+      if (documentPictureInPicture.window) {
+        documentPictureInPicture.window.close();
         return;
       }
+
       try {
-        const pipWindow = await window.documentPictureInPicture.requestWindow({ width: 380, height: 620 });
-        const styles = document.querySelectorAll('style, link[rel="stylesheet"]');
-        for (let i = 0; i < styles.length; i++) {
-            pipWindow.document.head.appendChild(styles[i].cloneNode(true));
-        }
+        const pipWindow = await documentPictureInPicture.requestWindow({
+          width: 380,
+          height: 600
+        });
+
+        Array.from(document.styleSheets).forEach((styleSheet) => {
+          try {
+            const cssRules = Array.from(styleSheet.cssRules).map(rule => rule.cssText).join('');
+            const style = pipWindow.document.createElement('style');
+            style.textContent = cssRules;
+            pipWindow.document.head.appendChild(style);
+          } catch (e) {}
+        });
+
         pipWindow.document.body.style.backgroundColor = "#0e0e10";
+        pipWindow.document.body.style.margin = "0";
         pipWindow.document.body.style.display = "flex";
         pipWindow.document.body.style.flexDirection = "column";
+        pipWindow.document.body.style.justifyContent = "flex-start";
         pipWindow.document.body.style.alignItems = "center";
         pipWindow.document.body.style.padding = "16px";
+        pipWindow.document.body.style.overflowY = "auto";
+
         pipWindow.document.body.appendChild(cardsWrapper);
-        
-        activeDoc = pipWindow.document;
         btn.textContent = "Return to Tab";
 
-        pipWindow.addEventListener("pagehide", function() {
+        pipWindow.addEventListener("pagehide", () => {
           document.body.appendChild(cardsWrapper);
-          activeDoc = document;
           btn.textContent = "Pop Out Window";
         }, { once: true });
+
       } catch (err) {
         console.error("PiP Error:", err);
       }
     }
 
+    // --- ITUNES HELPER ---
+    async function fetchSongArtworkFromItunes(searchTerm, callback) {
+      try {
+        const query = encodeURIComponent(searchTerm);
+        const res = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+          const result = data.results[0];
+          let artwork = result.artworkUrl100 ? result.artworkUrl100.replace('100x100bb', '600x600bb') : null;
+          callback(artwork);
+        }
+      } catch (e) {
+        console.error("iTunes Fetch Error:", e);
+      }
+    }
+
+    // --- DISCORD (LANYARD REST API) LOGIC ---
+    const USER_ID = "1167583899409465377";
+    const LANYARD_REST_URL = `https://api.lanyard.rest/v1/users/${USER_ID}`;
+
     function getAssetUrl(appId, assetId) {
-      if (!assetId) return "";
-      if (assetId.indexOf("mp:external/") === 0) return assetId.replace("mp:external/", "https://media.discordapp.net/external/");
-      if (assetId.indexOf("spotify:") === 0) return "https://i.scdn.co/image/" + assetId.split(":")[1];
-      return "https://cdn.discordapp.com/app-assets/" + appId + "/" + assetId + ".png";
+      if (!assetId || typeof assetId !== 'string') return "";
+      if (assetId.startsWith("mp:external/")) {
+        return assetId.replace("mp:external/", "https://media.discordapp.net/external/");
+      }
+      if (assetId.startsWith("spotify:")) {
+        return `https://i.scdn.co/image/${assetId.split(":")[1]}`;
+      }
+      return `https://cdn.discordapp.com/app-assets/${appId}/${assetId}.png`;
     }
 
     function renderDiscord(data) {
-      const container = activeDoc.getElementById("discord-container");
-      const ambient = activeDoc.getElementById("discord-ambient");
-      if (!container) return;
-      
-      let dStatus = data.discord_status || "offline";
-      let statusColor = "#747f8d";
-      if (dStatus === "online") statusColor = "#23A55A";
-      else if (dStatus === "idle") statusColor = "#F0B132";
-      else if (dStatus === "dnd") statusColor = "#F23F42";
-      
-      let statusText = dStatus === "offline" ? "OFFLINE" : dStatus.toUpperCase();
+      try {
+        const doc = getDoc();
+        const container = doc.getElementById("discord-container");
+        const discordAmbient = doc.getElementById("discord-ambient");
+        
+        let dStatus = data.discord_status || "offline";
+        let statusColor = "#747f8d";
+        if (dStatus === "online") statusColor = "#23A55A";
+        else if (dStatus === "idle") statusColor = "#F0B132";
+        else if (dStatus === "dnd") statusColor = "#F23F42";
+        let statusText = dStatus === "offline" ? "OFFLINE / INVISIBLE" : dStatus.toUpperCase();
 
-      let html = '<div class="activity-item"><div class="card-info"><div class="status-type">CURRENT STATE</div><div class="title" style="color: ' + statusColor + ';">' + statusText + '</div></div></div>';
+        let html = `
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="status-type">CURRENT STATE</div>
+              <div class="title" style="color: ${statusColor};">${statusText}</div>
+            </div>
+          </div>`;
 
-      let backgroundUrl = "";
+        let rpcImageUrl = "";
+        const ignoredVideoApps = ["YouTube", "Twitch", "Netflix", "Plex", "Crunchyroll", "VLC", "Disney+"];
 
-      if (data.activities && data.activities.length > 0) {
-        for (let i = 0; i < data.activities.length; i++) {
-          const act = data.activities[i];
-          if (act.type === 4) continue;
+        if (data.activities && data.activities.length > 0) {
+          for (const act of data.activities) {
+            if (act.type === 4) continue;
 
-          let imgUrl = "";
-          let artistName = "";
-          let songTitle = act.details || "";
-          let stateText = act.state || "";
-          let timeHtml = "";
-          const safeName = act.name || "App";
+            let imgUrl = "";
+            let artistName = "";
+            let songTitle = act.details || "";
+            let lyrics = act.state || "";
+            let timeHtml = "";
 
-          if (safeName === "Spotify" && data.spotify) {
-             songTitle = data.spotify.song || "";
-             artistName = data.spotify.artist || "";
-             imgUrl = data.spotify.album_art_url || "";
-             stateText = ""; 
-             if (data.spotify.timestamps) {
-               const start = data.spotify.timestamps.start || 0;
-               const end = data.spotify.timestamps.end || "";
-               timeHtml = '<div class="time-text" data-start="' + start + '" data-end="' + end + '"></div>';
-             }
-          } else {
-             if (act.assets && act.assets.large_image) imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
-             if (act.assets) {
-               if (act.assets.large_text) artistName = act.assets.large_text;
-               else if (act.assets.small_text) artistName = act.assets.small_text;
-             }
-             if (act.timestamps) {
-               const start = act.timestamps.start || 0;
-               const end = act.timestamps.end || "";
-               if (start) timeHtml = '<div class="time-text" data-start="' + start + '" data-end="' + end + '"></div>';
-             }
+            if (act.name === "Spotify" && data.spotify) {
+               songTitle = data.spotify.song;
+               artistName = data.spotify.artist;
+               imgUrl = data.spotify.album_art_url;
+               lyrics = ""; 
+               
+               if (data.spotify.timestamps) {
+                 timeHtml = `<div class="time-text" data-start="${data.spotify.timestamps.start}" data-end="${data.spotify.timestamps.end}" style="font-size: 0.75rem; color: #b5bac1; margin-top: 4px; font-variant-numeric: tabular-nums;"></div>`;
+               }
+            } else {
+               const isVideoService = ignoredVideoApps.some(app => 
+                 act.name.toLowerCase().includes(app.toLowerCase())
+               );
+
+               if (act.assets && act.assets.large_image) {
+                  imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
+               }
+
+               if (act.assets) {
+                 if (act.assets.large_text) artistName = act.assets.large_text;
+                 else if (act.assets.small_text) artistName = act.assets.small_text;
+               }
+
+               if (act.timestamps) {
+                 const start = act.timestamps.start || "";
+                 const end = act.timestamps.end || "";
+                 if (start) {
+                   timeHtml = `<div class="time-text" data-start="${start}" data-end="${end}" style="font-size: 0.75rem; color: #b5bac1; margin-top: 4px; font-variant-numeric: tabular-nums;"></div>`;
+                 }
+               }
+
+               if (!isVideoService && songTitle && !imgUrl) {
+                 fetchSongArtworkFromItunes(songTitle, (artwork) => {
+                   if (artwork) {
+                     const activeDoc = getDoc();
+                     const currentAmbient = activeDoc.getElementById("discord-ambient");
+                     if (currentAmbient) currentAmbient.style.backgroundImage = `url('${artwork}')`;
+                     const imgEl = activeDoc.getElementById(`discord-icon-${act.application_id || 'spotify'}`);
+                     if (imgEl) {
+                       imgEl.src = artwork;
+                       imgEl.style.display = 'block';
+                     }
+                   }
+                 });
+               }
+            }
+
+            if (imgUrl && !rpcImageUrl) {
+              rpcImageUrl = imgUrl;
+            }
+
+            const actionText = act.type === 2 ? 'LISTENING TO' : 'PLAYING';
+            const uniqueId = act.application_id || 'spotify';
+
+            html += `
+            <div class="activity-item" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+              <div class="card-info">
+                <div class="status-type" style="color: #5865F2;">${actionText} ${act.name ? act.name.toUpperCase() : 'APP'}</div>
+                ${songTitle ? `<div class="title">${songTitle}</div>` : ''}
+                <div class="details" id="discord-artist-${uniqueId}" style="${artistName ? '' : 'display:none;'}">by ${artistName}</div>
+                ${lyrics ? `<div class="state">${lyrics}</div>` : ''}
+                ${timeHtml}
+              </div>
+              <img class="card-icon" id="discord-icon-${uniqueId}" src="${imgUrl}" style="${imgUrl ? '' : 'display:none;'}" onerror="this.style.display='none'" />
+            </div>`;
           }
-
-          if (imgUrl && !backgroundUrl) backgroundUrl = imgUrl;
-
-          const actionText = act.type === 2 ? 'LISTENING TO' : 'PLAYING';
-
-          html += '<div class="activity-item" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">';
-          html += '<div class="card-info">';
-          html += '<div class="status-type" style="color: #5865F2;">' + actionText + ' ' + safeName.toUpperCase() + '</div>';
-          if (songTitle) html += '<div class="title">' + songTitle + '</div>';
-          if (artistName) html += '<div class="details">by ' + artistName + '</div>';
-          if (stateText) html += '<div class="state">' + stateText + '</div>';
-          html += timeHtml;
-          html += '</div>';
-          if (imgUrl) html += '<img class="card-icon" src="' + imgUrl + '" onerror="this.style.display=\'none\'" />';
-          html += '</div>';
         }
-      }
 
-      if (ambient) {
-        if (backgroundUrl) ambient.style.backgroundImage = 'url("' + backgroundUrl + '")';
-        else ambient.style.backgroundImage = 'none';
+        if (rpcImageUrl) {
+          discordAmbient.style.backgroundImage = `url('${rpcImageUrl}')`;
+        } else {
+          discordAmbient.style.backgroundImage = 'none';
+        }
+
+        if (container) {
+          container.innerHTML = html;
+        }
+      } catch (err) {
+        console.error("Render Discord Error:", err);
       }
-      container.innerHTML = html;
     }
 
-    function fetchDiscord() {
-      fetch("https://api.lanyard.rest/v1/users/" + USER_ID + "?t=" + Date.now())
-        .then(function(res) { return res.json(); })
-        .then(function(json) {
-          if (json.success && json.data) renderDiscord(json.data);
-        })
-        .catch(function(err) {
-          const container = activeDoc.getElementById("discord-container");
+    async function fetchDiscord() {
+      try {
+        const res = await fetch(`${LANYARD_REST_URL}?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error("Discord API failed");
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          renderDiscord(json.data);
+        }
+      } catch (err) {
+        console.error("Discord Fetch Error:", err);
+      }
+    }
+
+    fetchDiscord();
+    setInterval(fetchDiscord, 5000);
+
+    // --- LAST.FM API LOGIC ---
+    const WORKER_LASTFM_URL = "https://my-rpc.grammar-checker.workers.dev/api/lastfm";
+    const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
+
+    async function fetchMedia() {
+      try {
+        const res = await fetch(`${WORKER_LASTFM_URL}?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return; 
+        const data = await res.json();
+
+        const doc = getDoc();
+        const container = doc.getElementById("media-container");
+        const ambient = doc.getElementById("media-ambient");
+
+        if (!data.is_playing) {
           if (container) {
-            container.innerHTML = '<div class="activity-item"><div class="card-info"><div class="title" style="color: #f23f42;">Failed to load Lanyard</div></div></div>';
+            container.innerHTML = `
+              <div class="activity-item">
+                <div class="card-info">
+                  <div class="title" style="color: #80848e; font-style: italic;">Not listening to anything</div>
+                </div>
+              </div>`;
           }
-        });
+          if (ambient) ambient.style.backgroundImage = 'none';
+          return;
+        }
+
+        let finalImage = data.image;
+        if (!finalImage || finalImage === "") {
+          finalImage = FALLBACK_IMAGE;
+          fetchSongArtworkFromItunes(`${data.artist} `.trim(), (artwork) => {
+            if (artwork) {
+              const activeDoc = getDoc();
+              const currentAmbient = activeDoc.getElementById("media-ambient");
+              if (currentAmbient) currentAmbient.style.backgroundImage = `url('${artwork}')`;
+              const imgEl = activeDoc.getElementById("media-icon");
+              if (imgEl) imgEl.src = artwork;
+            }
+          });
+        }
+
+        if (ambient) ambient.style.backgroundImage = `url('${finalImage}')`;
+
+        if (container) {
+          container.innerHTML = `
+            <div class="activity-item">
+              <div class="card-info">
+                <div class="status-type" style="color: #d51007;">SCROBBLING</div>
+                <div class="title">${data.song}</div>
+                <div class="details">by ${data.artist}</div>
+                <div class="state">${data.album}</div>
+              </div>
+              <img class="card-icon" id="media-icon" src="${finalImage}" />
+            </div>`;
+        }
+      } catch (err) {
+        console.error("Last.fm Fetch Error:", err);
+      }
     }
 
-    function fetchMedia() {
-      fetch("https://my-rpc.grammar-checker.workers.dev/api/lastfm?t=" + Date.now())
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          const container = activeDoc.getElementById("media-container");
-          const ambient = activeDoc.getElementById("media-ambient");
-          if (!container) return;
+    fetchMedia();
+    setInterval(fetchMedia, 10000); 
+  </script>
+</body>
+</html>
 
-          if (!data.is_playing) {
-            container.innerHTML = '<div class="activity-item"><div class="card
