@@ -200,6 +200,33 @@
         : document;
     }
 
+    // --- TIME FORMATTING HELPER ---
+    function formatTime(ms) {
+      if (ms < 0) return "0:00";
+      const totalSeconds = Math.floor(ms / 1000);
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // --- LIVE TIMER UPDATER (Ticks every second) ---
+    setInterval(() => {
+      const doc = getDoc();
+      const now = Date.now();
+      doc.querySelectorAll('.time-text').forEach(el => {
+        const start = parseInt(el.getAttribute('data-start'));
+        const end = parseInt(el.getAttribute('data-end'));
+
+        if (start && end) {
+           el.innerText = `${formatTime(now - start)} / ${formatTime(end - start)}`;
+        } else if (start) {
+           el.innerText = `${formatTime(now - start)} elapsed`;
+        }
+      });
+    }, 1000);
+
     // --- DYNAMIC POP-UP (DOCUMENT PICTURE-IN-PICTURE) LOGIC ---
     async function togglePiP() {
       if (!('documentPictureInPicture' in window)) {
@@ -218,7 +245,7 @@
       try {
         const pipWindow = await documentPictureInPicture.requestWindow({
           width: 380,
-          height: 600 // Increased initial height to fit cards better
+          height: 600
         });
 
         Array.from(document.styleSheets).forEach((styleSheet) => {
@@ -234,10 +261,10 @@
         pipWindow.document.body.style.margin = "0";
         pipWindow.document.body.style.display = "flex";
         pipWindow.document.body.style.flexDirection = "column";
-        pipWindow.document.body.style.justifyContent = "flex-start"; // Fixed: aligns to top so nothing cuts off
+        pipWindow.document.body.style.justifyContent = "flex-start";
         pipWindow.document.body.style.alignItems = "center";
         pipWindow.document.body.style.padding = "16px";
-        pipWindow.document.body.style.overflowY = "auto"; // Enables smooth scrolling if window is resized smaller
+        pipWindow.document.body.style.overflowY = "auto";
 
         pipWindow.document.body.appendChild(cardsWrapper);
         btn.textContent = "Return to Tab";
@@ -315,12 +342,17 @@
             let artistName = "";
             let songTitle = act.details || "";
             let lyrics = act.state || "";
+            let timeHtml = "";
 
             if (act.name === "Spotify" && data.spotify) {
                songTitle = data.spotify.song;
                artistName = data.spotify.artist;
                imgUrl = data.spotify.album_art_url;
                lyrics = ""; 
+               
+               if (data.spotify.timestamps) {
+                 timeHtml = `<div class="time-text" data-start="${data.spotify.timestamps.start}" data-end="${data.spotify.timestamps.end}" style="font-size: 0.75rem; color: #b5bac1; margin-top: 4px; font-variant-numeric: tabular-nums;"></div>`;
+               }
             } else {
                const isVideoService = ignoredVideoApps.some(app => 
                  act.name.toLowerCase().includes(app.toLowerCase())
@@ -333,6 +365,14 @@
                if (act.assets) {
                  if (act.assets.large_text) artistName = act.assets.large_text;
                  else if (act.assets.small_text) artistName = act.assets.small_text;
+               }
+
+               if (act.timestamps) {
+                 const start = act.timestamps.start || "";
+                 const end = act.timestamps.end || "";
+                 if (start) {
+                   timeHtml = `<div class="time-text" data-start="${start}" data-end="${end}" style="font-size: 0.75rem; color: #b5bac1; margin-top: 4px; font-variant-numeric: tabular-nums;"></div>`;
+                 }
                }
 
                if (!isVideoService && songTitle && !imgUrl) {
@@ -365,6 +405,7 @@
                 ${songTitle ? `<div class="title">${songTitle}</div>` : ''}
                 <div class="details" id="discord-artist-${uniqueId}" style="${artistName ? '' : 'display:none;'}">by ${artistName}</div>
                 ${lyrics ? `<div class="state">${lyrics}</div>` : ''}
+                ${timeHtml}
               </div>
               <img class="card-icon" id="discord-icon-${uniqueId}" src="${imgUrl}" style="${imgUrl ? '' : 'display:none;'}" onerror="this.style.display='none'" />
             </div>`;
@@ -467,3 +508,4 @@
   </script>
 </body>
 </html>
+
