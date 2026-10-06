@@ -278,4 +278,181 @@
     function getAssetUrl(appId, assetId) {
       if (!assetId || typeof assetId !== 'string') return "";
       if (assetId.startsWith("mp:external/")) {
-        return assetId.replace("mp:external/", "
+        return assetId.replace("mp:external/", "https://media.discordapp.net/external/");
+      }
+      if (assetId.startsWith("spotify:")) {
+        return `https://i.scdn.co/image/${assetId.split(":")[1]}`;
+      }
+      return `https://cdn.discordapp.com/app-assets/${appId}/${assetId}.png`;
+    }
+
+    function renderDiscord(data) {
+      try {
+        const container = document.getElementById("discord-container");
+        const discordAmbient = document.getElementById("discord-ambient");
+        
+        let dStatus = data.discord_status || "offline";
+        let statusColor = "#747f8d";
+        if (dStatus === "online") statusColor = "#23A55A";
+        else if (dStatus === "idle") statusColor = "#F0B132";
+        else if (dStatus === "dnd") statusColor = "#F23F42";
+        let statusText = dStatus === "offline" ? "OFFLINE / INVISIBLE" : dStatus.toUpperCase();
+
+        let html = `
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="status-type">CURRENT STATE</div>
+              <div class="title" style="color: ${statusColor};">${statusText}</div>
+            </div>
+          </div>`;
+
+        let rpcImageUrl = "";
+        const ignoredVideoApps = ["YouTube", "Twitch", "Netflix", "Plex", "Crunchyroll", "VLC", "Disney+"];
+
+        if (data.activities && data.activities.length > 0) {
+          for (const act of data.activities) {
+            if (act.type === 4) continue;
+
+            let imgUrl = "";
+            let artistName = "";
+            let songTitle = act.details || "";
+            let lyrics = act.state || "";
+
+            if (act.name === "Spotify" && data.spotify) {
+               songTitle = data.spotify.song;
+               artistName = data.spotify.artist;
+               imgUrl = data.spotify.album_art_url;
+               lyrics = ""; 
+            } else {
+               const isVideoService = ignoredVideoApps.some(app => 
+                 act.name.toLowerCase().includes(app.toLowerCase())
+               );
+
+               if (act.assets && act.assets.large_image) {
+                  imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
+               }
+
+               if (act.assets) {
+                 if (act.assets.large_text) artistName = act.assets.large_text;
+                 else if (act.assets.small_text) artistName = act.assets.small_text;
+               }
+
+               if (!isVideoService && songTitle && !imgUrl) {
+                 fetchSongArtworkFromItunes(songTitle, (artwork) => {
+                   if (artwork) {
+                     discordAmbient.style.backgroundImage = `url('${artwork}')`;
+                     const imgEl = document.getElementById(`discord-icon-${act.application_id || 'spotify'}`);
+                     if (imgEl) {
+                       imgEl.src = artwork;
+                       imgEl.style.display = 'block';
+                     }
+                   }
+                 });
+               }
+            }
+
+            if (imgUrl && !rpcImageUrl) {
+              rpcImageUrl = imgUrl;
+            }
+
+            const actionText = act.type === 2 ? 'LISTENING TO' : 'PLAYING';
+            const uniqueId = act.application_id || 'spotify';
+
+            html += `
+            <div class="activity-item" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
+              <div class="card-info">
+                <div class="status-type" style="color: #5865F2;">${actionText}${act.name ? act.name.toUpperCase() : 'APP'}</div>
+                ${songTitle ? `<div class="title">${songTitle}</div>` : ''}
+                <div class="details" id="discord-artist-${uniqueId}" style="${artistName ? '' : 'display:none;'}">by ${artistName}</div>${lyrics ? `<div class="state">${lyrics}</div>` : ''}
+              </div>
+              <img class="card-icon" id="discord-icon-${uniqueId}" src="${imgUrl}" style="${imgUrl ? '' : 'display:none;'}" onerror="this.style.display='none'" />
+            </div>`;
+          }
+        }
+
+        if (rpcImageUrl) {
+          discordAmbient.style.backgroundImage = `url('${rpcImageUrl}')`;
+        } else {
+          discordAmbient.style.backgroundImage = 'none';
+        }
+
+        container.innerHTML = html;
+        updatePiPSize();
+      } catch (err) {
+        console.error("Render Discord Error:", err);
+      }
+    }
+
+    async function fetchDiscord() {
+      try {
+        const res = await fetch(`${LANYARD_REST_URL}?t=${Date.now()}`, { 
+          cache: 'no-store'
+        });
+
+        if (!res.ok) throw new Error("Discord API failed");
+        const json = await res.json();
+
+        if (json.success && json.data) {
+          renderDiscord(json.data);
+        }
+      } catch (err) {
+        console.error("Discord Fetch Error:", err);
+        const container = document.getElementById("discord-container");
+        if (container) {
+          container.innerHTML = `
+            <div class="activity-item">
+              <div class="card-info">
+                <div class="title" style="color: #f23f42; font-size: 0.85rem;">Failed to load Discord status</div>
+              </div>
+            </div>`;
+          updatePiPSize();
+        }
+      }
+    }
+
+    fetchDiscord();
+    setInterval(fetchDiscord, 5000);
+
+    // --- LAST.FM API LOGIC ---
+    const WORKER_LASTFM_URL = "https://my-rpc.grammar-checker.workers.dev/api/lastfm";
+    const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
+
+    async function fetchMedia() {
+      const container = document.getElementById("media-container");
+      const ambient = document.getElementById("media-ambient");
+      try {
+        const res = await fetch(`${WORKER_LASTFM_URL}?t=${Date.now()}`, { 
+          cache: 'no-store'
+        });
+
+        if (!res.ok) throw new Error("Network response failed");
+        const data = await res.json();
+
+        if (!data.is_playing) {
+          container.innerHTML = `
+            <div class="activity-item">
+              <div class="card-info">
+                <div class="title" style="color: #80848e; font-style: italic;">Not listening to anything</div>
+              </div>
+            </div>`;
+          ambient.style.backgroundImage = 'none';
+          updatePiPSize();
+          return;
+        }
+
+        let finalImage = data.image;
+        if (!finalImage || finalImage === "") {
+          finalImage = FALLBACK_IMAGE;
+          fetchSongArtworkFromItunes(`${data.artist}${data.song}`, (artwork) => {
+            if (artwork) {
+              ambient.style.backgroundImage = `url('${artwork}')`;
+              const imgEl = document.getElementById("media-icon");
+              if (imgEl) imgEl.src = artwork;
+            }
+          });
+        }
+
+        ambient.style.backgroundImage = `url('${finalImage}')`;
+
+        container.innerHTML = `
+          <div class="activity
