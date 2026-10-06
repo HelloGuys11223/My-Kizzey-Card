@@ -153,57 +153,51 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
-    /* --- REAL-TIME SYNCHRONIZED LYRICS STYLES & ANIMATIONS --- */
+    /* --- REAL-TIME LYRICS STYLES --- */
     .lyrics-container {
-      margin-top: 10px;
-      height: 130px;
+      margin-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 12px;
+      height: 110px;
       overflow: hidden;
       position: relative;
       mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
       -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-      padding-top: 10px;
     }
 
     .lyrics-wrapper {
+      transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-      align-items: flex-start;
-      will-change: transform;
+      gap: 8px;
+      padding-top: 35px;
     }
 
     .lyric-line {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.35);
-      transition: color 0.3s ease, transform 0.3s ease, filter 0.3s ease, opacity 0.3s ease;
-      transform-origin: left center;
+      font-size: 0.82rem;
+      color: #80848e;
+      transition: color 0.2s ease, font-weight 0.2s ease, transform 0.2s ease;
       line-height: 1.35;
-      filter: blur(0.5px);
     }
 
     .lyric-line.active {
       color: #ffffff;
-      font-size: 0.98rem;
-      font-weight: 800;
-      opacity: 1;
-      filter: blur(0px) drop-shadow(0 0 10px rgba(255,255,255,0.4));
-      transform: scale(1.04);
+      font-weight: 700;
+      transform: scale(1.03);
+      transform-origin: left center;
     }
 
     .lyrics-status {
-      font-size: 0.8rem;
-      font-style: italic;
+      font-size: 0.75rem;
       color: #80848e;
-      padding-top: 8px;
+      font-style: italic;
+      padding-top: 10px;
     }
   </style>
 </head>
 <body>
 
-  <!-- PiP Toggle Button fixed in Bottom Right -->
+  <!-- PiP Toggle Button -->
   <button class="pip-btn" id="pip-toggle-btn" onclick="togglePiP()">Pop Out Window</button>
 
   <!-- Cards Container -->
@@ -240,203 +234,16 @@
   </div>
 
   <script>
-    // Helper to always target the correct active document (Main tab or PiP window)
     function getDoc() {
       return (window.documentPictureInPicture && documentPictureInPicture.window) 
         ? documentPictureInPicture.window.document 
         : document;
     }
 
-    // --- TIME FORMATTING HELPER ---
+    // --- TIME FORMATTING ---
     function formatTime(ms) {
       if (ms < 0) return "0:00";
       const totalSeconds = Math.floor(ms / 1000);
       const h = Math.floor(totalSeconds / 3600);
       const m = Math.floor((totalSeconds % 3600) / 60);
-      const s = totalSeconds % 60;
-      if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-      return `${m}:${s.toString().padStart(2, '0')}`;
-    }
-
-    // --- REAL-TIME LYRICS STATE ---
-    let currentTrackKey = "";
-    let parsedLyrics = [];
-    let trackStartTime = 0;
-    let activeLineIndex = -1;
-
-    // Parse standard LRC timestamped lyrics string: [mm:ss.xx] Lyrics line
-    function parseLRC(lrcText) {
-      if (!lrcText) return [];
-      const lines = lrcText.split('\n');
-      const result = [];
-      const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
-
-      for (let line of lines) {
-        const match = timeRegex.exec(line);
-        if (match) {
-          const minutes = parseInt(match[1], 10);
-          const seconds = parseInt(match[2], 10);
-          const msStr = match[3].padEnd(3, '0').slice(0, 3);
-          const milliseconds = parseInt(msStr, 10);
-          const totalMs = (minutes * 60 + seconds) * 1000 + milliseconds;
-          const text = line.replace(timeRegex, '').trim();
-          if (text) {
-            result.push({ time: totalMs, text });
-          }
-        }
-      }
-      return result.sort((a, b) => a.time - b.time);
-    }
-
-    // Fetch synchronized lyrics from LRCLIB API
-    async function fetchSyncedLyrics(artist, title) {
-      try {
-        const query = `artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`;
-        let res = await fetch(`https://lrclib.net/api/get?${query}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.syncedLyrics) return parseLRC(data.syncedLyrics);
-        }
-        
-        // Search fallback if direct match fails
-        res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(artist + " " + title)}`);
-        if (res.ok) {
-          const searchData = await res.json();
-          if (searchData.length > 0 && searchData[0].syncedLyrics) {
-            return parseLRC(searchData[0].syncedLyrics);
-          }
-        }
-      } catch (e) {
-        console.error("LRCLIB Fetch Error:", e);
-      }
-      return null;
-    }
-
-    // Update & animate lyric scrolling in real-time
-    function updateLyricsSync() {
-      if (!parsedLyrics || parsedLyrics.length === 0 || !trackStartTime) return;
-
-      const doc = getDoc();
-      const wrapper = doc.getElementById("lyrics-wrapper");
-      if (!wrapper) return;
-
-      const elapsed = Date.now() - trackStartTime;
-      let newActiveIndex = -1;
-
-      for (let i = 0; i < parsedLyrics.length; i++) {
-        if (elapsed >= parsedLyrics[i].time) {
-          newActiveIndex = i;
-        } else {
-          break;
-        }
-      }
-
-      if (newActiveIndex !== activeLineIndex) {
-        activeLineIndex = newActiveIndex;
-        const lineElements = wrapper.querySelectorAll('.lyric-line');
-        
-        lineElements.forEach((el, idx) => {
-          if (idx === activeLineIndex) {
-            el.classList.add('active');
-          } else {
-            el.classList.remove('active');
-          }
-        });
-
-        if (activeLineIndex >= 0 && lineElements[activeLineIndex]) {
-          const targetEl = lineElements[activeLineIndex];
-          const offset = targetEl.offsetTop - 35; // Centers active line
-          wrapper.style.transform = `translateY(-${Math.max(0, offset)}px)`;
-        }
-      }
-    }
-
-    // --- LIVE TIMER & LYRICS TICKER (Runs continuously) ---
-    setInterval(() => {
-      const doc = getDoc();
-      const now = Date.now();
-      
-      // Update elapsed/remaining track timers
-      doc.querySelectorAll('.time-text').forEach(el => {
-        const start = parseInt(el.getAttribute('data-start'));
-        const end = parseInt(el.getAttribute('data-end'));
-
-        if (start && end) {
-           el.innerText = `${formatTime(now - start)} / ${formatTime(end - start)}`;
-        } else if (start) {
-           el.innerText = `${formatTime(now - start)} elapsed`;
-        }
-      });
-
-      // Sync lyrics animation
-      updateLyricsSync();
-    }, 100);
-
-    // Load new song lyrics into container
-    async function setupLyricsForTrack(artist, title, startTime) {
-      const trackKey = `${artist} - ${title}`.toLowerCase();
-      if (currentTrackKey === trackKey) return;
-
-      currentTrackKey = trackKey;
-      trackStartTime = startTime;
-      activeLineIndex = -1;
-      parsedLyrics = [];
-
-      const doc = getDoc();
-      const lyricsContainer = doc.getElementById("discord-lyrics-container");
-      if (!lyricsContainer) return;
-
-      lyricsContainer.innerHTML = `<div class="lyrics-status">Searching synced lyrics...</div>`;
-
-      const lyrics = await fetchSyncedLyrics(artist, title);
-
-      if (currentTrackKey !== trackKey) return; // Prevent out-of-order race conditions
-
-      if (lyrics && lyrics.length > 0) {
-        parsedLyrics = lyrics;
-        let html = `<div class="lyrics-wrapper" id="lyrics-wrapper">`;
-        lyrics.forEach((line, index) => {
-          html += `<div class="lyric-line" id="lyric-${index}">${line.text}</div>`;
-        });
-        html += `</div>`;
-        lyricsContainer.innerHTML = html;
-        updateLyricsSync();
-      } else {
-        lyricsContainer.innerHTML = `<div class="lyrics-status">No synced lyrics available</div>`;
-      }
-    }
-
-    // --- DYNAMIC POP-UP (DOCUMENT PICTURE-IN-PICTURE) LOGIC ---
-    async function togglePiP() {
-      if (!('documentPictureInPicture' in window)) {
-        alert("Document Picture-in-Picture is not supported in this browser.");
-        return;
-      }
-
-      const cardsWrapper = document.getElementById("cards-wrapper");
-      const btn = document.getElementById("pip-toggle-btn");
-
-      if (documentPictureInPicture.window) {
-        documentPictureInPicture.window.close();
-        return;
-      }
-
-      try {
-        const pipWindow = await documentPictureInPicture.requestWindow({
-          width: 380,
-          height: 620
-        });
-
-        Array.from(document.styleSheets).forEach((styleSheet) => {
-          try {
-            const cssRules = Array.from(styleSheet.cssRules).map(rule => rule.cssText).join('');
-            const style = pipWindow.document.createElement('style');
-            style.textContent = cssRules;
-            pipWindow.document.head.appendChild(style);
-          } catch (e) {}
-        });
-
-        pipWindow.document.body.style.backgroundColor = "#0e0e10";
-        pipWindow.document.body.style.margin = "0";
-        pipWindow.document.body.style.display = "flex";
-        pipWindow.document.body.style.flexDirection =
+      const s = total
