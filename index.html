@@ -153,6 +153,24 @@
   </div>
 
   <script>
+    // --- SHARED ITUNES ALBUM ARTWORK HELPER ---
+    async function fetchAlbumArtFromItunes(searchTerm) {
+      try {
+        const query = encodeURIComponent(searchTerm);
+        const res = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+          let artwork = data.results[0].artworkUrl100;
+          if (artwork) {
+            return artwork.replace('100x100bb', '600x600bb');
+          }
+        }
+      } catch (e) {
+        console.error("iTunes Fetch Error:", e);
+      }
+      return null;
+    }
+
     // --- DISCORD (LANYARD) LOGIC ---
     const USER_ID = "1167583899409465377";
     const WS_URL = "wss://api.lanyard.rest/socket";
@@ -170,7 +188,7 @@
       return `https://cdn.discordapp.com/app-assets/${appId}/${assetId}.png`;
     }
 
-    function renderDiscord(data) {
+    async function renderDiscord(data) {
       try {
         const container = document.getElementById("discord-container");
         const discordAmbient = document.getElementById("discord-ambient");
@@ -191,16 +209,29 @@
           </div>`;
 
         let rpcImageUrl = "";
+        // Video services to exclude from iTunes music fallback lookup
+        const ignoredVideoApps = ["YouTube", "Twitch", "Netflix", "Plex", "Crunchyroll", "VLC", "Disney+"];
 
         if (data.activities && data.activities.length > 0) {
-          data.activities.forEach(act => {
-            if (act.type === 4) return; // Skip custom status text
+          for (const act of data.activities) {
+            if (act.type === 4) continue; // Skip custom status text
 
             let imgUrl = "";
             if (act.name === "Spotify" && data.spotify) {
                imgUrl = data.spotify.album_art_url;
             } else if (act.assets && act.assets.large_image) {
                imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
+            }
+
+            // Check if app is a video service
+            const isVideoService = ignoredVideoApps.some(app => 
+              act.name.toLowerCase().includes(app.toLowerCase())
+            );
+
+            // If no image provided by Discord RPC and it's NOT a video service, fetch from iTunes using song details
+            if (!imgUrl && !isVideoService && act.details) {
+              const query = act.state ? `${act.details} ${act.state}` : act.details;
+              imgUrl = await fetchAlbumArtFromItunes(query);
             }
 
             if (imgUrl && !rpcImageUrl) {
@@ -218,7 +249,7 @@
               </div>
               ${imgUrl ? `<img class="card-icon" src="${imgUrl}" onerror="this.style.display='none'" />` : ''}
             </div>`;
-          });
+          }
         }
 
         if (rpcImageUrl) {
@@ -235,7 +266,7 @@
 
     function connectWebSocket() {
       ws = new WebSocket(WS_URL);
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         try {
           const message = JSON.parse(event.data);
           if (message.op === 1) {
@@ -246,7 +277,7 @@
             ws.send(JSON.stringify({ op: 2, d: { subscribe_to_id: USER_ID } }));
           }
           if (message.op === 0 && message.d) {
-            renderDiscord(message.d);
+            await renderDiscord(message.d);
           }
         } catch (e) {
           console.error("WS Message Error:", e);
@@ -261,27 +292,9 @@
     }
     connectWebSocket();
 
-    // --- LAST.FM & ITUNES ALBUM ARTWORK FALLBACK LOGIC ---
+    // --- LAST.FM API LOGIC ---
     const WORKER_LASTFM_URL = "https://my-rpc.grammar-checker.workers.dev/api/lastfm";
     const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
-
-    async function fetchAlbumArtFromItunes(artist, song) {
-      try {
-        const query = encodeURIComponent(`${artist} ${song}`);
-        const res = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
-        const data = await res.json();
-        if (data.results && data.results.length > 0) {
-          let artwork = data.results[0].artworkUrl100;
-          if (artwork) {
-            // Upscale image resolution from 100x100 to 600x600 for sharp quality
-            return artwork.replace('100x100bb', '600x600bb');
-          }
-        }
-      } catch (e) {
-        console.error("iTunes Fetch Error:", e);
-      }
-      return null;
-    }
 
     async function fetchMedia() {
       try {
@@ -301,15 +314,10 @@
           return;
         }
 
-        // 1. Try Last.fm image first
         let finalImage = data.image;
-
-        // 2. If Last.fm image is missing, fetch from iTunes Search API using artist + song name
         if (!finalImage || finalImage === "") {
-          finalImage = await fetchAlbumArtFromItunes(data.artist, data.song);
+          finalImage = await fetchAlbumArtFromItunes(`${data.artist} ${data.song}`);
         }
-
-        // 3. If iTunes also fails, fall back to the star icon
         if (!finalImage) {
           finalImage = FALLBACK_IMAGE;
         }
