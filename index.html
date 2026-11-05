@@ -67,6 +67,19 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    /* Style specifically for link card interactive hover state */
+    .kizzey-card-link {
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .kizzey-card-link:hover .kizzey-card {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.15);
     }
 
     .ambient-bg {
@@ -161,7 +174,24 @@
 
   <!-- Cards Container -->
   <div class="cards-wrapper" id="cards-wrapper">
-    <!-- CARD 1: Discord Status & RPC -->
+
+    <!-- CARD 1: StrawPage (Crawlable link opening in a new tab) -->
+    <a href="https://noobie.straw.page/" target="_blank" rel="noopener" class="kizzey-card-link">
+      <div class="kizzey-card" id="strawpage-card">
+        <div class="card-content">
+          <div class="section-header" style="color: #ffaa00;">Personal Webpage</div>
+          <div class="activity-item">
+            <div class="card-info">
+              <div class="status-type" style="color: #ffaa00;">StrawPage Profile</div>
+              <div class="title">noobie.straw.page</div>
+              <div class="details">Click to visit profile page ↗</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <!-- CARD 2: Discord Status & RPC -->
     <div class="kizzey-card" id="discord-card">
       <div class="ambient-bg" id="discord-ambient"></div>
       <div class="card-content">
@@ -176,7 +206,7 @@
       </div>
     </div>
 
-    <!-- CARD 2: Media (Last.fm) -->
+    <!-- CARD 3: Media (Last.fm) -->
     <div class="kizzey-card" id="media-card">
       <div class="ambient-bg" id="media-ambient"></div>
       <div class="card-content">
@@ -190,6 +220,7 @@
         </div>
       </div>
     </div>
+
   </div>
 
   <script>
@@ -508,4 +539,3 @@
   </script>
 </body>
 </html>
-
