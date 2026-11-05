@@ -67,19 +67,6 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      transition: transform 0.2s ease, border-color 0.2s ease;
-    }
-
-    /* Style specifically for link card interactive hover state */
-    .kizzey-card-link {
-      text-decoration: none;
-      color: inherit;
-      display: block;
-    }
-
-    .kizzey-card-link:hover .kizzey-card {
-      transform: translateY(-2px);
-      border-color: rgba(255, 255, 255, 0.15);
     }
 
     .ambient-bg {
@@ -165,6 +152,29 @@
       flex-shrink: 0;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
+
+    /* --- FOOTER LINK TAB STYLES --- */
+    .site-footer {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.72rem;
+      color: #80848e;
+      z-index: 10;
+      letter-spacing: 0.03em;
+    }
+
+    .site-footer a {
+      color: #949ba4;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .site-footer a:hover {
+      color: #ffffff;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -174,24 +184,7 @@
 
   <!-- Cards Container -->
   <div class="cards-wrapper" id="cards-wrapper">
-
-    <!-- CARD 1: StrawPage (Crawlable link opening in a new tab) -->
-    <a href="https://noobie.straw.page/" target="_blank" rel="noopener" class="kizzey-card-link">
-      <div class="kizzey-card" id="strawpage-card">
-        <div class="card-content">
-          <div class="section-header" style="color: #ffaa00;">Personal Webpage</div>
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="status-type" style="color: #ffaa00;">StrawPage Profile</div>
-              <div class="title">noobie.straw.page</div>
-              <div class="details">Click to visit profile page ↗</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </a>
-
-    <!-- CARD 2: Discord Status & RPC -->
+    <!-- CARD 1: Discord Status & RPC -->
     <div class="kizzey-card" id="discord-card">
       <div class="ambient-bg" id="discord-ambient"></div>
       <div class="card-content">
@@ -206,7 +199,7 @@
       </div>
     </div>
 
-    <!-- CARD 3: Media (Last.fm) -->
+    <!-- CARD 2: Media (Last.fm) -->
     <div class="kizzey-card" id="media-card">
       <div class="ambient-bg" id="media-ambient"></div>
       <div class="card-content">
@@ -220,8 +213,12 @@
         </div>
       </div>
     </div>
-
   </div>
+
+  <!-- Footer Link (Stays on main page tab only, hidden from PiP window) -->
+  <footer class="site-footer" id="site-footer">
+    <a href="https://noobie.straw.page/" target="_blank" rel="noopener">StrawPage Profile</a>
+  </footer>
 
   <script>
     // Helper to always target the correct active document (Main tab or PiP window)
@@ -276,7 +273,7 @@
       try {
         const pipWindow = await documentPictureInPicture.requestWindow({
           width: 380,
-          height: 600
+          height: 560
         });
 
         Array.from(document.styleSheets).forEach((styleSheet) => {
@@ -297,6 +294,7 @@
         pipWindow.document.body.style.padding = "16px";
         pipWindow.document.body.style.overflowY = "auto";
 
+        // Append ONLY the cards wrapper (leaves footer behind on the main tab)
         pipWindow.document.body.appendChild(cardsWrapper);
         btn.textContent = "Return to Tab";
 
