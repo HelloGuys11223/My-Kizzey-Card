@@ -1,511 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kizzey's Presence</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      background-color: #0e0e10;
-      color: #ffffff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: 20px;
-      min-height: 100vh;
-      padding: 20px 16px; 
-    }
-
-    .pip-btn {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 9999;
-      background-color: #5865F2;
-      color: white;
-      border: none;
-      border-radius: 14px;
-      padding: 12px 18px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(10px);
-      transition: background-color 0.2s, transform 0.1s;
-    }
-
-    .pip-btn:active {
-      transform: scale(0.96);
-    }
-
-    .cards-wrapper {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      width: 100%;
-      max-width: 380px;
-      align-items: center;
-      padding: 4px;
-    }
-
-    .kizzey-card {
-      background-color: rgba(17, 18, 20, 0.65);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
-      padding: 18px;
-      width: 100%;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-    }
-
-    .ambient-bg {
-      position: absolute;
-      top: -30px;
-      left: -30px;
-      right: -30px;
-      bottom: -30px;
-      background-size: cover;
-      background-position: center;
-      filter: blur(30px) saturate(200%) brightness(0.6);
-      opacity: 0.55;
-      z-index: 0;
-      transition: background-image 0.8s ease-in-out;
-      pointer-events: none;
-    }
-
-    .card-content {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .section-header {
-      font-size: 0.75rem;
-      font-weight: 800;
-      color: #80848e;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      padding-bottom: 6px;
-      margin-bottom: -6px;
-    }
-
-    .activity-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      width: 100%;
-    }
-
-    .card-info {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    .status-type {
-      font-size: 0.68rem;
-      font-weight: 700;
-      color: #949ba4;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .title {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #f2f3f5;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .details, .state {
-      font-size: 0.82rem;
-      color: #b5bac1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .card-icon {
-      width: 60px;
-      height: 60px;
-      border-radius: 10px;
-      object-fit: cover;
-      flex-shrink: 0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Links</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #b3b3b3;
+            margin-bottom: 30px;
+        }
+        .links-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .link-card {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            border: 1px solid #333;
+        }
+        .link-card:hover {
+            background-color: #2a2a2a;
+            transform: translateY(-2px);
+        }
+        .strawpage {
+            border-color: #8b5cf6;
+            color: #c084fc;
+        }
+        .strawpage:hover {
+            background-color: #2e1065;
+        }
+    </style>
 </head>
 <body>
 
-  <!-- PiP Toggle Button fixed in Bottom Right -->
-  <button class="pip-btn" id="pip-toggle-btn" onclick="togglePiP()">Pop Out Window</button>
-
-  <!-- Cards Container -->
-  <div class="cards-wrapper" id="cards-wrapper">
-    <!-- CARD 1: Discord Status & RPC -->
-    <div class="kizzey-card" id="discord-card">
-      <div class="ambient-bg" id="discord-ambient"></div>
-      <div class="card-content">
-        <div class="section-header">Discord Status</div>
-        <div id="discord-container">
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="title" style="color: #80848e; font-style: italic;">Connecting to Discord...</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CARD 2: Media (Last.fm) -->
-    <div class="kizzey-card" id="media-card">
-      <div class="ambient-bg" id="media-ambient"></div>
-      <div class="card-content">
-        <div class="section-header" style="color: #d51007;">Now Playing (Last.fm)</div>
-        <div id="media-container">
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="title" style="color: #80848e; font-style: italic;">Loading media...</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // Helper to always target the correct active document (Main tab or PiP window)
-    function getDoc() {
-      return (window.documentPictureInPicture && documentPictureInPicture.window) 
-        ? documentPictureInPicture.window.document 
-        : document;
-    }
-
-    // --- TIME FORMATTING HELPER ---
-    function formatTime(ms) {
-      if (ms < 0) return "0:00";
-      const totalSeconds = Math.floor(ms / 1000);
-      const h = Math.floor(totalSeconds / 3600);
-      const m = Math.floor((totalSeconds % 3600) / 60);
-      const s = totalSeconds % 60;
-      if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-      return `${m}:${s.toString().padStart(2, '0')}`;
-    }
-
-    // --- LIVE TIMER UPDATER (Ticks every second) ---
-    setInterval(() => {
-      const doc = getDoc();
-      const now = Date.now();
-      doc.querySelectorAll('.time-text').forEach(el => {
-        const start = parseInt(el.getAttribute('data-start'));
-        const end = parseInt(el.getAttribute('data-end'));
-
-        if (start && end) {
-           el.innerText = `${formatTime(now - start)} / ${formatTime(end - start)}`;
-        } else if (start) {
-           el.innerText = `${formatTime(now - start)} elapsed`;
-        }
-      });
-    }, 1000);
-
-    // --- DYNAMIC POP-UP (DOCUMENT PICTURE-IN-PICTURE) LOGIC ---
-    async function togglePiP() {
-      if (!('documentPictureInPicture' in window)) {
-        alert("Document Picture-in-Picture is not supported in this browser.");
-        return;
-      }
-
-      const cardsWrapper = document.getElementById("cards-wrapper");
-      const btn = document.getElementById("pip-toggle-btn");
-
-      if (documentPictureInPicture.window) {
-        documentPictureInPicture.window.close();
-        return;
-      }
-
-      try {
-        const pipWindow = await documentPictureInPicture.requestWindow({
-          width: 380,
-          height: 600
-        });
-
-        Array.from(document.styleSheets).forEach((styleSheet) => {
-          try {
-            const cssRules = Array.from(styleSheet.cssRules).map(rule => rule.cssText).join('');
-            const style = pipWindow.document.createElement('style');
-            style.textContent = cssRules;
-            pipWindow.document.head.appendChild(style);
-          } catch (e) {}
-        });
-
-        pipWindow.document.body.style.backgroundColor = "#0e0e10";
-        pipWindow.document.body.style.margin = "0";
-        pipWindow.document.body.style.display = "flex";
-        pipWindow.document.body.style.flexDirection = "column";
-        pipWindow.document.body.style.justifyContent = "flex-start";
-        pipWindow.document.body.style.alignItems = "center";
-        pipWindow.document.body.style.padding = "16px";
-        pipWindow.document.body.style.overflowY = "auto";
-
-        pipWindow.document.body.appendChild(cardsWrapper);
-        btn.textContent = "Return to Tab";
-
-        pipWindow.addEventListener("pagehide", () => {
-          document.body.appendChild(cardsWrapper);
-          btn.textContent = "Pop Out Window";
-        }, { once: true });
-
-      } catch (err) {
-        console.error("PiP Error:", err);
-      }
-    }
-
-    // --- ITUNES HELPER ---
-    async function fetchSongArtworkFromItunes(searchTerm, callback) {
-      try {
-        const query = encodeURIComponent(searchTerm);
-        const res = await fetch(`https://itunes.apple.com/search?term=${query}&entity=song&limit=1`);
-        const data = await res.json();
-        if (data.results && data.results.length > 0) {
-          const result = data.results[0];
-          let artwork = result.artworkUrl100 ? result.artworkUrl100.replace('100x100bb', '600x600bb') : null;
-          callback(artwork);
-        }
-      } catch (e) {
-        console.error("iTunes Fetch Error:", e);
-      }
-    }
-
-    // --- DISCORD (LANYARD REST API) LOGIC ---
-    const USER_ID = "1167583899409465377";
-    const LANYARD_REST_URL = `https://api.lanyard.rest/v1/users/${USER_ID}`;
-
-    function getAssetUrl(appId, assetId) {
-      if (!assetId || typeof assetId !== 'string') return "";
-      if (assetId.startsWith("mp:external/")) {
-        return assetId.replace("mp:external/", "https://media.discordapp.net/external/");
-      }
-      if (assetId.startsWith("spotify:")) {
-        return `https://i.scdn.co/image/${assetId.split(":")[1]}`;
-      }
-      return `https://cdn.discordapp.com/app-assets/${appId}/${assetId}.png`;
-    }
-
-    function renderDiscord(data) {
-      try {
-        const doc = getDoc();
-        const container = doc.getElementById("discord-container");
-        const discordAmbient = doc.getElementById("discord-ambient");
+    <div class="container">
+        <h1>Welcome</h1>
+        <p>Connect with me across the web</p>
         
-        let dStatus = data.discord_status || "offline";
-        let statusColor = "#747f8d";
-        if (dStatus === "online") statusColor = "#23A55A";
-        else if (dStatus === "idle") statusColor = "#F0B132";
-        else if (dStatus === "dnd") statusColor = "#F23F42";
-        let statusText = dStatus === "offline" ? "OFFLINE / INVISIBLE" : dStatus.toUpperCase();
+        <div class="links-container">
+            <!-- StrawPage Connection -->
+            <a href="https://noobie.straw.page/" class="link-card strawpage" rel="me" target="_blank">StrawPage</a>
+            
+            <!-- Add your other links here -->
+        </div>
+    </div>
 
-        let html = `
-          <div class="activity-item">
-            <div class="card-info">
-              <div class="status-type">CURRENT STATE</div>
-              <div class="title" style="color: ${statusColor};">${statusText}</div>
-            </div>
-          </div>`;
-
-        let rpcImageUrl = "";
-        const ignoredVideoApps = ["YouTube", "Twitch", "Netflix", "Plex", "Crunchyroll", "VLC", "Disney+"];
-
-        if (data.activities && data.activities.length > 0) {
-          for (const act of data.activities) {
-            if (act.type === 4) continue;
-
-            let imgUrl = "";
-            let artistName = "";
-            let songTitle = act.details || "";
-            let lyrics = act.state || "";
-            let timeHtml = "";
-
-            if (act.name === "Spotify" && data.spotify) {
-               songTitle = data.spotify.song;
-               artistName = data.spotify.artist;
-               imgUrl = data.spotify.album_art_url;
-               lyrics = ""; 
-               
-               if (data.spotify.timestamps) {
-                 timeHtml = `<div class="time-text" data-start="${data.spotify.timestamps.start}" data-end="${data.spotify.timestamps.end}" style="font-size: 0.75rem; color: #b5bac1; margin-top: 4px; font-variant-numeric: tabular-nums;"></div>`;
-               }
-            } else {
-               const isVideoService = ignoredVideoApps.some(app => 
-                 act.name.toLowerCase().includes(app.toLowerCase())
-               );
-
-               if (act.assets && act.assets.large_image) {
-                  imgUrl = getAssetUrl(act.application_id, act.assets.large_image);
-               }
-
-               if (act.assets) {
-                 if (act.assets.large_text) artistName = act.assets.large_text;
-                 else if (act.assets.small_text) artistName = act.assets.small_text;
-               }
-
-               if (act.timestamps) {
-                 const start = act.timestamps.start || "";
-                 const end = act.timestamps.end || "";
-                 if (start) {
-                   timeHtml = `<div class="time-text" data-start="${start}" data-end="${end}" style="font-size: 0.75rem; color: #b5bac1; margin-top: 4px; font-variant-numeric: tabular-nums;"></div>`;
-                 }
-               }
-
-               if (!isVideoService && songTitle && !imgUrl) {
-                 fetchSongArtworkFromItunes(songTitle, (artwork) => {
-                   if (artwork) {
-                     const activeDoc = getDoc();
-                     const currentAmbient = activeDoc.getElementById("discord-ambient");
-                     if (currentAmbient) currentAmbient.style.backgroundImage = `url('${artwork}')`;
-                     const imgEl = activeDoc.getElementById(`discord-icon-${act.application_id || 'spotify'}`);
-                     if (imgEl) {
-                       imgEl.src = artwork;
-                       imgEl.style.display = 'block';
-                     }
-                   }
-                 });
-               }
-            }
-
-            if (imgUrl && !rpcImageUrl) {
-              rpcImageUrl = imgUrl;
-            }
-
-            const actionText = act.type === 2 ? 'LISTENING TO' : 'PLAYING';
-            const uniqueId = act.application_id || 'spotify';
-
-            html += `
-            <div class="activity-item" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px;">
-              <div class="card-info">
-                <div class="status-type" style="color: #5865F2;">${actionText} ${act.name ? act.name.toUpperCase() : 'APP'}</div>
-                ${songTitle ? `<div class="title">${songTitle}</div>` : ''}
-                <div class="details" id="discord-artist-${uniqueId}" style="${artistName ? '' : 'display:none;'}">by ${artistName}</div>
-                ${lyrics ? `<div class="state">${lyrics}</div>` : ''}
-                ${timeHtml}
-              </div>
-              <img class="card-icon" id="discord-icon-${uniqueId}" src="${imgUrl}" style="${imgUrl ? '' : 'display:none;'}" onerror="this.style.display='none'" />
-            </div>`;
-          }
-        }
-
-        if (rpcImageUrl) {
-          discordAmbient.style.backgroundImage = `url('${rpcImageUrl}')`;
-        } else {
-          discordAmbient.style.backgroundImage = 'none';
-        }
-
-        if (container) {
-          container.innerHTML = html;
-        }
-      } catch (err) {
-        console.error("Render Discord Error:", err);
-      }
-    }
-
-    async function fetchDiscord() {
-      try {
-        const res = await fetch(`${LANYARD_REST_URL}?t=${Date.now()}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error("Discord API failed");
-        const json = await res.json();
-
-        if (json.success && json.data) {
-          renderDiscord(json.data);
-        }
-      } catch (err) {
-        console.error("Discord Fetch Error:", err);
-      }
-    }
-
-    fetchDiscord();
-    setInterval(fetchDiscord, 5000);
-
-    // --- LAST.FM API LOGIC ---
-    const WORKER_LASTFM_URL = "https://my-rpc.grammar-checker.workers.dev/api/lastfm";
-    const FALLBACK_IMAGE = "https://lastfm.freetls.fastly.net/i/u/300x300/2a96cbd8b46e442fc41c2b86b821562f.png";
-
-    async function fetchMedia() {
-      try {
-        const res = await fetch(`${WORKER_LASTFM_URL}?t=${Date.now()}`, { cache: 'no-store' });
-        if (!res.ok) return; 
-        const data = await res.json();
-
-        const doc = getDoc();
-        const container = doc.getElementById("media-container");
-        const ambient = doc.getElementById("media-ambient");
-
-        if (!data.is_playing) {
-          if (container) {
-            container.innerHTML = `
-              <div class="activity-item">
-                <div class="card-info">
-                  <div class="title" style="color: #80848e; font-style: italic;">Not listening to anything</div>
-                </div>
-              </div>`;
-          }
-          if (ambient) ambient.style.backgroundImage = 'none';
-          return;
-        }
-
-        let finalImage = data.image;
-        if (!finalImage || finalImage === "") {
-          finalImage = FALLBACK_IMAGE;
-          fetchSongArtworkFromItunes(`${data.artist} `.trim(), (artwork) => {
-            if (artwork) {
-              const activeDoc = getDoc();
-              const currentAmbient = activeDoc.getElementById("media-ambient");
-              if (currentAmbient) currentAmbient.style.backgroundImage = `url('${artwork}')`;
-              const imgEl = activeDoc.getElementById("media-icon");
-              if (imgEl) imgEl.src = artwork;
-            }
-          });
-        }
-
-        if (ambient) ambient.style.backgroundImage = `url('${finalImage}')`;
-
-        if (container) {
-          container.innerHTML = `
-            <div class="activity-item">
-              <div class="card-info">
-                <div class="status-type" style="color: #d51007;">SCROBBLING</div>
-                <div class="title">${data.song}</div>
-                <div class="details">by ${data.artist}</div>
-                <div class="state">${data.album}</div>
-              </div>
-              <img class="card-icon" id="media-icon" src="${finalImage}" />
-            </div>`;
-        }
-      } catch (err) {
-        console.error("Last.fm Fetch Error:", err);
-      }
-    }
-
-    fetchMedia();
-    setInterval(fetchMedia, 10000); 
-  </script>
 </body>
 </html>
-
